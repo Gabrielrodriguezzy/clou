@@ -7,9 +7,10 @@ from app.models.user import User
 from app.models.deposit import Deposit, DepositStatus
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.deposit import DepositCreate, DepositResponse
-from datetime import datetime, timedelta, timezone
+from app.services.pix_provider import get_pix_provider
+from app.core.config import settings
+from datetime import datetime, timezone
 import uuid
-from typing import Optional
 
 router = APIRouter(prefix="/api/deposits", tags=["deposits"])
 
@@ -26,9 +27,13 @@ async def create_deposit(
     fee = round(data.amount * 0.01, 2)  # 1% de taxa
     net_amount = round(data.amount - fee, 2)
 
-    # Gerar QR Code Pix simulado (em produção usaria API Mercado Pago)
+    # Usar PixProvider (mock ou mercadopago conforme config)
     external_id = f"clou_{uuid.uuid4().hex[:16]}"
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    pix_provider = get_pix_provider(settings.model_dump())
+    payment = pix_provider.create_payment(
+        amount=data.amount,
+        external_id=external_id,
+    )
 
     deposit = Deposit(
         user_id=current_user.id,
@@ -38,9 +43,9 @@ async def create_deposit(
         payment_method="pix",
         status=DepositStatus.PENDING,
         external_id=external_id,
-        pix_qr_text=f"00020126580014br.gov.bcb.pix0136{external_id}520400005303986540{data.amount:.2f}5802BR5913ClouPainel6008SaoPaulo62070503***6304ABCD",
-        pix_qr_code="",  # Em produção: gerar QR Code real da API MP
-        expires_at=expires_at,
+        pix_qr_text=payment.get("pix_qr_text", ""),
+        pix_qr_code=payment.get("pix_qr_code", ""),
+        expires_at=payment.get("expires_at"),
     )
     db.add(deposit)
     await db.flush()
@@ -78,25 +83,33 @@ async def get_deposit(
     return deposit
 
 
-# Webhook simulado para testes (em produção viria do Mercado Pago)
+# Webhook Pix (funciona com mock e preparado para Mercado Pago real)
 @router.post("/webhook/pix")
 async def pix_webhook(
     data: dict,
     db: AsyncSession = Depends(get_db),
 ):
-    external_id = data.get("external_id")
-    status_webhook = data.get("status", "paid")
+    pix_provider = get_pix_provider(settings.model_dump())
+    result = pix_provider.handle_webhook(data)
 
-    result = await db.execute(
+    external_id = result.get("external_id", data.get("external_id", ""))
+    status_webhook = result.get("status", "paid")
+
+    if not external_id:
+        raise HTTPException(status_code=400, detail="external_id não fornecido")
+
+    deposit_result = await db.execute(
         select(Deposit).where(Deposit.external_id == external_id)
     )
-    deposit = result.scalar_one_or_none()
+    deposit = deposit_result.scalar_one_or_none()
     if not deposit:
         raise HTTPException(status_code=404, detail="Depósito não encontrado")
 
     if status_webhook == "paid" and deposit.status == DepositStatus.PENDING:
         deposit.status = DepositStatus.PAID
-        deposit.paid_at = datetime.now(timezone.utc)
+        deposit.paid_at = result.get("paid_at")
+        if not deposit.paid_at:
+            deposit.paid_at = datetime.now(timezone.utc)
         await db.flush()
 
         # Creditar saldo

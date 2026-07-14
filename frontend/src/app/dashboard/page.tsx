@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { api, Service, Platform } from "@/lib/api";
+import { api, Service, Platform, UserResponse, OrderResponse } from "@/lib/api";
 import BuyModal from "@/components/BuyModal";
 import DashboardLayout from "./layout";
 
 export default function DashboardHome() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserResponse | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [activePlatform, setActivePlatform] = useState<number | null>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<Service | null>(null);
   const [token, setToken] = useState("");
@@ -25,9 +25,9 @@ export default function DashboardHome() {
 
     Promise.all([
       api.me(t),
-      api.get<Service[]>("/services", t).catch(() => []),
-      api.get<Platform[]>("/platforms", t).catch(() => []),
-      api.get<any[]>("/orders", t).catch(() => []),
+      api.get<Service[]>("/services", t).catch(() => [] as Service[]),
+      api.get<Platform[]>("/platforms", t).catch(() => [] as Platform[]),
+      api.get<OrderResponse[]>("/orders", t).catch(() => [] as OrderResponse[]),
     ])
       .then(([u, s, p, o]) => {
         setUser(u);
@@ -73,7 +73,7 @@ export default function DashboardHome() {
     <>
       {/* Welcome */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Olá, {user.name.split(" ")[0]}! 👋</h1>
+        <h1 className="text-2xl font-bold text-white">Olá, {user?.name?.split(" ")[0] || "usuário"}! 👋</h1>
         <p className="text-slate-500 text-sm mt-1">Bem-vindo ao seu painel de controle</p>
       </div>
 
@@ -84,7 +84,7 @@ export default function DashboardHome() {
             <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">Saldo</p>
             <span className="text-xs text-slate-600">Disponível</span>
           </div>
-          <p className="text-3xl font-bold text-emerald-400">R$ {user.balance.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-emerald-400">R$ {user?.balance.toFixed(2)}</p>
           <Link href="/dashboard/deposit" className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 mt-2 transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -234,10 +234,9 @@ export default function DashboardHome() {
         onClose={() => setBuying(null)}
         token={token}
         onSuccess={() => {
-          // Recarregar pedidos e saldo
           const t = localStorage.getItem("clou_token");
           if (t) {
-            api.get<any[]>("/orders", t).then(setOrders).catch(() => {});
+            api.get<OrderResponse[]>("/orders", t).then(setOrders).catch(() => {});
             api.me(t).then(setUser).catch(() => {});
           }
         }}

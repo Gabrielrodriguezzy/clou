@@ -47,3 +47,10 @@ class ServiceResponse(BaseModel):
 class ServiceListResponse(BaseModel):
     platforms: List[PlatformResponse]
     services: List[ServiceResponse]
+
+
+class StatsResponse(BaseModel):
+    total_orders: int
+    total_users: int
+    avg_delivery_rate: float
+    total_services: int

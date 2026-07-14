@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, DepositResponse } from "@/lib/api";
 
 export default function DepositPage() {
   const [token, setToken] = useState("");
@@ -10,7 +10,7 @@ export default function DepositPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [qrText, setQrText] = useState("");
+  const [deposit, setDeposit] = useState<DepositResponse | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -21,16 +21,16 @@ export default function DepositPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(""); setSuccess(""); setQrText("");
+    setError(""); setSuccess(""); setDeposit(null);
     const val = parseFloat(amount);
     if (isNaN(val) || val < 1) { setError("Valor mínimo: R$ 1,00"); return; }
     setLoading(true);
     try {
-      const data: any = await api.post("/deposits", { amount: val }, token);
+      const data = await api.post<DepositResponse>("/deposits", { amount: val }, token);
       setSuccess(`Depósito de R$ ${val.toFixed(2)} criado com sucesso!`);
-      if (data.pix_qr_text) setQrText(data.pix_qr_text);
+      setDeposit(data);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Erro ao criar depósito");
     } finally {
       setLoading(false);
     }
@@ -82,10 +82,10 @@ export default function DepositPage() {
           </button>
         </form>
 
-        {qrText && (
+        {deposit?.pix_qr_text && (
           <div className="glass-card p-5">
             <p className="text-xs text-slate-500 mb-3 font-medium">Código Pix (copia e cola):</p>
-            <pre className="text-xs text-slate-300 bg-slate-950 p-3 rounded-lg break-all whitespace-pre-wrap select-all border border-slate-800/50">{qrText}</pre>
+            <pre className="text-xs text-slate-300 bg-slate-950 p-3 rounded-lg break-all whitespace-pre-wrap select-all border border-slate-800/50">{deposit.pix_qr_text}</pre>
             <p className="text-xs text-slate-600 mt-3">
               ⏱ Este código expira em 30 minutos. Após o pagamento, o saldo é creditado automaticamente.
             </p>

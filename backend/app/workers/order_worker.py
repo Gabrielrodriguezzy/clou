@@ -19,7 +19,14 @@ class OrderWorker:
     """Processa pedidos pendentes e atualiza status"""
 
     def __init__(self):
-        self.engine = create_async_engine(settings.DATABASE_URL, echo=False)
+        self.engine = create_async_engine(
+            settings.DATABASE_URL,
+            echo=False,
+            pool_size=2,
+            max_overflow=2,
+            pool_timeout=30,
+            pool_recycle=300,  # recicla conexões a cada 5 min
+        )
         self.session_factory = async_sessionmaker(self.engine, class_=AsyncSession)
 
     async def process_pending_orders(self):
@@ -64,6 +71,8 @@ class OrderWorker:
                     ps = ps_result.scalar_one_or_none()
                     if not ps:
                         logger.warning(f"Serviço {order.service_id} não mapeado no provedor {provider.id}")
+                        order.status = OrderStatus.ERROR
+                        order.notes = "Serviço não mapeado no provedor"
                         continue
 
                     # Enviar pedido ao provedor
@@ -90,7 +99,7 @@ class OrderWorker:
                 except Exception as e:
                     logger.error(f"Erro ao processar pedido #{order.id}: {e}")
                     order.status = OrderStatus.ERROR
-                    order.notes = f"Erro no provedor: {str(e)}"
+                    order.notes = f"Erro no provedor: {str(e)[:200]}"
 
             await db.commit()
             return processed

@@ -6,6 +6,7 @@ import ServiceCard from "@/components/ServiceCard";
 import PlatformFilter from "@/components/PlatformFilter";
 import Testimonials from "@/components/Testimonials";
 import Diferenciais from "@/components/Diferenciais";
+import { api, StatsResponse } from "@/lib/api";
 
 interface Platform {
   id: number;
@@ -25,13 +26,6 @@ interface Service {
   platform_id: number;
   platform?: Platform;
 }
-
-const stats = [
-  { value: "50K+", label: "Pedidos realizados" },
-  { value: "10+", label: "Plataformas" },
-  { value: "99%", label: "Taxa de entrega" },
-  { value: "24/7", label: "Suporte" },
-];
 
 const plans = [
   {
@@ -83,6 +77,7 @@ const faqs = [
 export default function Home() {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [stats, setStats] = useState<StatsResponse | null>(null);
   const [activePlatform, setActivePlatform] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,14 +85,26 @@ export default function Home() {
     Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/platforms`).then((r) => r.json()),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/services`).then((r) => r.json()),
+      api.get<StatsResponse>("/stats").catch(() => null),
     ])
-      .then(([p, s]) => {
+      .then(([p, s, st]) => {
         setPlatforms(p);
         setServices(s);
+        setStats(st);
         if (p.length > 0) setActivePlatform(p[0].id);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // Determinar quais stats mostrar
+  const displayStats = stats && stats.total_orders > 0
+    ? [
+        { value: `${stats.total_orders}`, label: "Pedidos realizados" },
+        { value: `${stats.total_services}+`, label: "Serviços disponíveis" },
+        { value: `${stats.avg_delivery_rate}%`, label: "Taxa de entrega" },
+        { value: `${stats.total_users}`, label: "Clientes" },
+      ]
+    : null;
 
   const filtered = activePlatform
     ? services.filter((s) => s.platform_id === activePlatform)
@@ -137,17 +144,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="max-w-5xl mx-auto px-4 mb-20">
-        <div className="glass-card grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-800/50">
-          {stats.map((s, i) => (
-            <div key={i} className="py-6 text-center">
-              <p className="text-2xl sm:text-3xl font-bold text-white">{s.value}</p>
-              <p className="text-xs text-slate-500 mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Stats — dinâmicos do sistema */}
+      {displayStats && (
+        <section className="max-w-5xl mx-auto px-4 mb-20">
+          <div className="glass-card grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-800/50">
+            {displayStats.map((s, i) => (
+              <div key={i} className="py-6 text-center">
+                <p className="text-2xl sm:text-3xl font-bold text-white">{s.value}</p>
+                <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Serviços */}
       <section id="servicos" className="max-w-7xl mx-auto px-4 mb-20">
