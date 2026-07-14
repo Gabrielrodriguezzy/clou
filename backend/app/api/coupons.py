@@ -41,7 +41,7 @@ async def validate_coupon(
         raise HTTPException(status_code=400, detail="Cupom inativo")
     if coupon.max_uses > 0 and coupon.used_count >= coupon.max_uses:
         raise HTTPException(status_code=400, detail="Cupom esgotado")
-    if coupon.expires_at and coupon.expires_at < datetime.now(timezone.utc):
+    if coupon.expires_at and coupon.expires_at.replace(tzinfo=None) < datetime.now(timezone.utc).replace(tzinfo=None):
         raise HTTPException(status_code=400, detail="Cupom expirado")
     if data.amount < coupon.min_amount:
         raise HTTPException(

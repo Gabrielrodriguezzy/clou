@@ -1,4 +1,4 @@
-"""Configuração de testes — banco SQLite in-memory + dados básicos."""
+"""Configuração de testes — banco SQLite em memória com FastAPI TestClient via ASGI."""
 import pytest
 import pytest_asyncio
 from typing import AsyncGenerator
@@ -28,14 +28,21 @@ test_engine = create_async_engine(
     echo=False,
 )
 
-TestSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+TestSessionLocal = async_sessionmaker(
+    test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
 
 
-# ─── Setup/Teardown automático por função de teste ───────────────
+# ─── Session compartilhada via fixture ───────────────────────────
+# Estratégia: cada teste abre UMA sessão que é usada tanto pelas seeds
+# quanto pelo dependency override do FastAPI. Isso elimina o conflito
+# de transações entre o seed e o client HTTP.
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest_asyncio.fixture(autouse=True, scope="function")
 async def setup_db():
-    """Cria tabelas antes de cada teste e dropa depois."""
+    """Cria tabelas antes de cada teste, dropa depois."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -43,33 +50,31 @@ async def setup_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 
-async def _get_test_db() -> AsyncGenerator[AsyncSession, None]:
-    """Fornece sessão de teste para o FastAPI (dependency override)."""
-    async with TestSessionLocal() as session:
-        yield session
-
-
 @pytest_asyncio.fixture(scope="function")
 async def db() -> AsyncGenerator[AsyncSession, None]:
-    """Sessão de banco para testes."""
+    """Sessão compartilhada: usada pelas seeds e pelo client (via override)."""
     async with TestSessionLocal() as session:
+        # Configura o override para que o FastAPI receba ESTA sessão
+        async def _override_get_db():
+            yield session
+
+        app.dependency_overrides[get_db] = _override_get_db
         yield session
+        app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client() -> AsyncGenerator[AsyncClient, None]:
-    """Cliente HTTP de teste com banco override."""
-    app.dependency_overrides[get_db] = _get_test_db
+async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Cliente HTTP de teste. A sessão db já está configurada via override."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    app.dependency_overrides.clear()
 
 
-# ─── Seeds para testes ───────────────────────────────────────────
+# ─── Seeds ───────────────────────────────────────────────────────
 
 @pytest_asyncio.fixture(scope="function")
-async def seed_platform(db) -> Platform:
+async def seed_platform(db: AsyncSession) -> Platform:
     p = Platform(name="Instagram", slug="instagram", is_active=True, sort_order=1)
     db.add(p)
     await db.flush()
@@ -78,7 +83,7 @@ async def seed_platform(db) -> Platform:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def seed_service(db, seed_platform) -> Service:
+async def seed_service(db: AsyncSession, seed_platform: Platform) -> Service:
     s = Service(
         name="Seguidores Brasil Teste", description="Descrição de teste",
         price=5.50, min_amount=100, max_amount=10000,
@@ -93,7 +98,7 @@ async def seed_service(db, seed_platform) -> Service:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def seed_user(db) -> User:
+async def seed_user(db: AsyncSession) -> User:
     u = User(
         email="teste@clou.com", name="Usuário Teste",
         password_hash=hash_password("Teste123!"),
@@ -106,7 +111,7 @@ async def seed_user(db) -> User:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def seed_admin(db) -> User:
+async def seed_admin(db: AsyncSession) -> User:
     u = User(
         email="admin@clou.com", name="Admin Teste",
         password_hash=hash_password("Admin123!"),
@@ -119,17 +124,17 @@ async def seed_admin(db) -> User:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def user_token(seed_user) -> str:
+async def user_token(seed_user: User) -> str:
     return create_access_token({"sub": str(seed_user.id)})
 
 
 @pytest_asyncio.fixture(scope="function")
-async def admin_token(seed_admin) -> str:
+async def admin_token(seed_admin: User) -> str:
     return create_access_token({"sub": str(seed_admin.id)})
 
 
 @pytest_asyncio.fixture(scope="function")
-async def seed_coupon(db) -> Coupon:
+async def seed_coupon(db: AsyncSession) -> Coupon:
     c = Coupon(
         code="TESTE10", discount_percent=10, max_uses=100, min_amount=1.0,
         is_active=True, used_count=0,
@@ -142,7 +147,7 @@ async def seed_coupon(db) -> Coupon:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def seed_expired_coupon(db) -> Coupon:
+async def seed_expired_coupon(db: AsyncSession) -> Coupon:
     c = Coupon(
         code="EXPIRADO", discount_percent=50, max_uses=100, min_amount=1.0,
         is_active=True, used_count=0,

@@ -20,14 +20,17 @@ class TestOrders:
         assert data["charge"] == round(5.50 * (500 / 1000), 2)  # 2.75
 
     @pytest.mark.asyncio
-    async def test_criar_pedido_saldo_insuficiente(self, client: AsyncClient, seed_user, seed_service, user_token):
+    async def test_criar_pedido_saldo_insuficiente(self, client: AsyncClient, seed_user, seed_service, user_token, db):
         """Pedido com valor maior que o saldo deve retornar 402."""
-        # seed_user tem saldo de 100, e o serviço custa 5.50/1K
-        # 100_000 unidades custariam 550 — maior que 100
+        # seed_user tem saldo 100, seed_service custa 5.50/1K
+        # Reduzir saldo pra 5.00 — 1000 unidades = 5.50 > 5.00
+        seed_user.balance = 5.0
+        await db.flush()
+
         resp = await client.post("/api/orders", json={
             "service_id": seed_service.id,
             "link": "https://instagram.com/testeperfil",
-            "quantity": 100_000,
+            "quantity": 1000,
         }, headers={"Authorization": f"Bearer {user_token}"})
         assert resp.status_code == 402
         assert "insuficiente" in resp.json()["detail"].lower()

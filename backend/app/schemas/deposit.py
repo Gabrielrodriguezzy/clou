@@ -15,9 +15,11 @@ class DepositResponse(BaseModel):
     net_amount: float
     payment_method: str
     status: str
+    external_id: Optional[str] = None
     pix_qr_code: Optional[str] = None
     pix_qr_text: Optional[str] = None
     expires_at: Optional[datetime] = None
+    paid_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
