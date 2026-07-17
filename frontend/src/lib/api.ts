@@ -185,10 +185,10 @@ export const api = {
       body: { email, password },
     }),
 
-  register: (email: string, password: string, name: string) =>
+  register: (email: string, password: string, name: string, refCode?: string) =>
     request<{ access_token: string }>("/auth/register", {
       method: "POST",
-      body: { email, password, name },
+      body: { email, password, name, ref_code: refCode },
     }),
 
   me: (token: string) => request<UserResponse>("/auth/me", { token }),

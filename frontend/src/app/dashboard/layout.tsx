@@ -18,6 +18,7 @@ const sidebarItems = [
   { icon: "🛒", label: "Comprar Serviços", href: "/dashboard/comprar" },
   { icon: "📋", label: "Meus Pedidos", href: "/dashboard/pedidos" },
   { icon: "💳", label: "Depositar", href: "/dashboard/deposit" },
+  { icon: "🤝", label: "Indicar e Ganhar", href: "/dashboard/indicar" },
   { icon: "⚙️", label: "Configurações", href: "/dashboard/config" },
 ];
 
@@ -27,6 +28,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Noindex — páginas do dashboard não devem aparecer no Google
+  useEffect(() => {
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex, nofollow";
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("clou_token");

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { SkeletonTable } from "@/components/Skeletons";
 
 interface Order {
   id: number;
@@ -120,7 +121,7 @@ export default function PedidosPage() {
 
       {/* List */}
       {loading ? (
-        <div className="text-center py-20 text-slate-600 text-sm">Carregando pedidos...</div>
+        <SkeletonTable rows={5} />
       ) : filtered.length === 0 ? (
         <div className="glass-card p-12 text-center">
           <div className="text-5xl mb-4">📭</div>
@@ -174,11 +175,9 @@ export default function PedidosPage() {
                         <p className="text-sm font-semibold text-emerald-400">{order.quantity}</p>
                       </div>
                     )}
-                    <button className="text-xs text-slate-600 hover:text-slate-400 transition-colors p-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
+                    <Link href={`/pedido/${order.id}`} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
+                      Detalhes
+                    </Link>
                   </div>
                 </div>
 

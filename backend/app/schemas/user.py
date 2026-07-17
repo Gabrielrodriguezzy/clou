@@ -8,6 +8,7 @@ class UserRegister(BaseModel):
     email: str = Field(..., max_length=255)
     password: str = Field(..., min_length=8, max_length=128)
     name: str = Field(..., max_length=100)
+    ref_code: Optional[str] = Field(None, max_length=50)
 
     @field_validator("password")
     @classmethod

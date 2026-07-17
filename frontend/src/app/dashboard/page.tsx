@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, Service, Platform, UserResponse, OrderResponse } from "@/lib/api";
 import BuyModal from "@/components/BuyModal";
 import DashboardLayout from "./layout";
+import { SkeletonDashboardStats, SkeletonServiceGrid } from "@/components/Skeletons";
 
 export default function DashboardHome() {
   const [user, setUser] = useState<UserResponse | null>(null);
@@ -67,7 +68,12 @@ export default function DashboardHome() {
     );
   };
 
-  if (loading) return null;
+  if (loading) return (
+    <DashboardLayout>
+      <SkeletonDashboardStats />
+      <SkeletonServiceGrid count={4} />
+    </DashboardLayout>
+  );
 
   return (
     <>

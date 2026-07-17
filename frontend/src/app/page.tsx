@@ -7,6 +7,7 @@ import PlatformFilter from "@/components/PlatformFilter";
 import Testimonials from "@/components/Testimonials";
 import Diferenciais from "@/components/Diferenciais";
 import { api, StatsResponse } from "@/lib/api";
+import { SkeletonServiceGrid } from "@/components/Skeletons";
 
 interface Platform {
   id: number;
@@ -176,10 +177,7 @@ export default function Home() {
         />
 
         {loading ? (
-          <div className="text-center py-20 text-slate-600">
-            <div className="inline-block w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mb-3" />
-            <p className="text-sm">Carregando serviços...</p>
-          </div>
+          <SkeletonServiceGrid count={8} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-8">
             {filtered.length === 0 && (
@@ -366,8 +364,9 @@ export default function Home() {
               <span className="text-xs text-slate-600">© 2026</span>
             </div>
             <div className="flex items-center gap-6">
-              <a href="#" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Termos</a>
-              <a href="#" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Privacidade</a>
+              <a href="/blog" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Blog</a>
+              <a href="/termos" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Termos</a>
+              <a href="/privacidade" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Privacidade</a>
               <a href="#" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Contato</a>
             </div>
             <p className="text-xs text-slate-700">Feito com dedicação para impulsionar seu crescimento digital.</p>
