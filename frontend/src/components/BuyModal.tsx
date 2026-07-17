@@ -143,7 +143,7 @@ export default function BuyModal({ service, isOpen, onClose, token, onSuccess }:
               <div className="glass-card p-3 !mt-4">
                 <p className="text-xs text-slate-500 font-medium mb-2">Cupom de Desconto</p>
                 <div className="flex gap-2">
-                  <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} placeholder="BEMVINDO10" className="input-clou flex-1 uppercase text-xs" />
+                  <input type="text" value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} placeholder="Digite seu cupom" className="input-clou flex-1 uppercase text-xs" />
                   <button type="button" onClick={applyCoupon} disabled={couponLoading || !couponCode} className="btn-accent text-xs !py-2 !px-3">
                     {couponLoading ? "..." : "Aplicar"}
                   </button>
