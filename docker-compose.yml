@@ -34,14 +34,12 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql+asyncpg://clou:clou_secret@postgres:5432/clou
+      - DATABASE_URL=postgresql+asyncpg://neondb_owner:npg_xeKyq3Ai9LRG@ep-misty-dawn-acmmi3rm-pooler.sa-east-1.aws.neon.tech/neondb
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=dev-secret-key-clou-2026
       - ENVIRONMENT=development
       - DEBUG=true
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
