@@ -90,13 +90,13 @@ async def seed():
                 ("Curtidas", "curtidas", [
                     ("Curtidas Instantâneas (Non Drop)", "curtidas-instantaneas",
                      "Curtidas não-drop, entregues em segundos. 100K/hora.",
-                     1769, 0.0549, 10, 50000, "Instantâneo", 200),
+                     1769, 0.0549, 10, 50000, "Instantâneo", 300),
                     ("Curtidas Brasileiras (30d Refill)", "curtidas-brasileiras-refill",
                      "Curtidas de alta qualidade com 30 dias de garantia.",
-                     1918, 0.0779, 10, 30000, "0-1h", 200),
+                     1918, 0.0779, 10, 30000, "0-1h", 280),
                     ("Curtidas (100K/hora, Non Drop)", "curtidas-100k-hora",
                      "Curtidas em alta velocidade. Ideal para posts virais.",
-                     1718, 0.0579, 10, 100000, "0-5 min", 200),
+                     1718, 0.0579, 10, 100000, "0-5 min", 290),
                 ]),
                 ("Visualizações", "visualizacoes", [
                     ("Visualizações Stories", "visualizacoes-stories",
@@ -161,7 +161,7 @@ async def seed():
                 ("Visualizações", "visualizacoes", [
                     ("Visualizações de Posts (50K/dia)", "visualizacoes-telegram-posts",
                      "Visualizações para posts do Telegram. 50K/dia.",
-                     796, 0.0529, 10, 500000, "0-60 min", 250),
+                     796, 0.0529, 10, 500000, "0-60 min", 310),
                     ("Visualizações Telegram (Mais Barato)", "visualizacoes-telegram-barato",
                      "Visualizações para qualquer post do Telegram. Preço imbatível.",
                      1703, 0.0826, 100, 100000, "0-30 min", 200),
