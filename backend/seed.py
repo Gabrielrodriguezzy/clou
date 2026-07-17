@@ -82,7 +82,7 @@ async def seed():
                      1864, 0.3943, 50, 10000, "0-2 min", 150),
                     ("Seguidores Brasil (20K/dia, Perfis Reais)", "seguidores-brasil-reais",
                      "Seguidores brasileiros com perfis reais antigos. Alta retenção.",
-                     1862, 2.5010, 50, 500000, "0-10 min", 60),
+                     1862, 2.5010, 50, 500000, "0-10 min", 100),
                     ("Seguidores Mundiais (500K/dia)", "seguidores-mundiais",
                      "Seguidores globais, entrega ultrarrápida até 10 milhões.",
                      2085, 0.2234, 10, 1000000, "0-30 min", 200),
@@ -131,10 +131,10 @@ async def seed():
                 ("Seguidores", "seguidores", [
                     ("Seguidores TikTok (30d Refill)", "seguidores-tiktok-refill",
                      "Seguidores para TikTok com 30 dias de garantia.",
-                     1980, 3.7525, 10, 50000, "0-24h", 80),
+                     1980, 3.7525, 10, 50000, "0-24h", 130),
                     ("Seguidores TikTok (HQ, 100K/dia)", "seguidores-tiktok-hq",
                      "Seguidores de alta qualidade para TikTok. Entrega rápida.",
-                     1982, 3.7550, 10, 100000, "0-24h", 80),
+                     1982, 3.7550, 10, 100000, "0-24h", 130),
                 ]),
             ]),
             # ─── YOUTUBE ───
