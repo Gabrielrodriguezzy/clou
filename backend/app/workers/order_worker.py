@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.core.config import settings
+from app.core.security_ext import decrypt_secret
 from app.models.order import Order, OrderStatus
 from app.models.provider import Provider
 from app.models.provider_service import ProviderService
@@ -55,7 +56,7 @@ class OrderWorker:
                 logger.warning("Nenhum provedor ativo configurado")
                 return 0
 
-            client = SMMPanelClient(api_key=provider.api_key)
+            client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY))
             processed = 0
 
             for order in orders:
@@ -135,7 +136,7 @@ class OrderWorker:
                 if not provider:
                     continue
 
-                client = SMMPanelClient(api_key=provider.api_key)
+                client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY))
 
                 # Consultar status em lote
                 order_ids = [int(o.provider_order_id) for o in provider_orders if o.provider_order_id]

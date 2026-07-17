@@ -3,14 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.security_ext import sanitize_text, validate_link, AuditLogger
 from app.models.user import User
 from app.models.service import Service, ServiceStatus
 from app.models.order import Order, OrderStatus
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.order import OrderCreate, OrderResponse
-from datetime import datetime, timezone
-
-from urllib.parse import urlparse
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -21,10 +19,9 @@ async def create_order(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Validar link
-    link = data.link.strip()
-    parsed = urlparse(link)
-    if not parsed.scheme or not parsed.netloc:
+    # Sanitizar e validar link
+    link = sanitize_text(data.link.strip(), max_length=2048)
+    if not validate_link(link):
         raise HTTPException(
             status_code=400,
             detail="Link inválido. Insira uma URL completa (ex: https://instagram.com/seuperfil)",
@@ -51,7 +48,7 @@ async def create_order(
     order = Order(
         user_id=current_user.id,
         service_id=service.id,
-        link=data.link.strip(),
+        link=link,
         quantity=data.quantity,
         charge=charge,
         status=OrderStatus.PENDING,

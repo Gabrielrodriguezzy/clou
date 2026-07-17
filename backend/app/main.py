@@ -1,13 +1,46 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from contextlib import asynccontextmanager
 from pathlib import Path
+import time
+import logging
+
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.security_ext import limiter, AuditLogger
 from app.api import auth, services, orders, deposits, admin, coupons, referrals
 from app.workers.order_worker import OrderWorker
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+logger = logging.getLogger(__name__)
+
+# ─── Security Headers Middleware ──────────────────────────────────────
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "0",  # Desliga obsoleto, confia em CSP
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+if settings.ENVIRONMENT == "production":
+    SECURITY_HEADERS["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+    SECURITY_HEADERS["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' https:; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
 
 
 @asynccontextmanager
@@ -23,16 +56,48 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# ─── Rate Limiter ─────────────────────────────────────────────────────
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ─── CORS (configurável) ──────────────────────────────────────────────
+cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.APP_URL, "http://localhost:3000", "http://localhost:8000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Rotas
+# ─── Trusted Host ─────────────────────────────────────────────────────
+if settings.ENVIRONMENT == "production":
+    trusted_hosts = [h.strip() for h in settings.CORS_ORIGINS.split(",") if h.strip()]
+    trusted_hosts = [h.replace("https://", "").replace("http://", "").split("/")[0] for h in trusted_hosts]
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
+
+# ─── Security Headers + Audit ─────────────────────────────────────────
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    start = time.time()
+
+    # Security headers
+    response = await call_next(request)
+    for header, value in SECURITY_HEADERS.items():
+        response.headers[header] = value
+
+    # Request timing
+    elapsed = time.time() - start
+    if elapsed > 5:
+        logger.warning(f"SLOW_REQUEST: {request.method} {request.url.path} took {elapsed:.2f}s")
+
+    return response
+
+
+# ─── Rotas ────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(services.router)
 app.include_router(orders.router)
@@ -41,7 +106,7 @@ app.include_router(coupons.router)
 app.include_router(admin.router)
 app.include_router(referrals.router)
 
-# Páginas estáticas (Termos e Privacidade)
+# ─── Páginas estáticas ────────────────────────────────────────────────
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 

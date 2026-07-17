@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from app.core.database import get_db
 from app.core.security import get_current_user, get_admin_user
+from app.core.security_ext import AuditLogger
 from app.models.user import User, UserRole
 from app.models.order import Order, OrderStatus
 from app.models.service import Service, ServiceStatus
@@ -143,6 +144,11 @@ async def update_user(
         setattr(user, key, val)
     await db.flush()
     await db.refresh(user)
+
+    AuditLogger.admin_action(
+        admin_id=admin.id, admin_email=admin.email,
+        action=f"update_user:{user_id}", target=f"user:{user.email}"
+    )
 
     order_count = await db.scalar(
         select(func.count(Order.id)).where(Order.user_id == user.id)

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.security_ext import AuditLogger
 from app.models.user import User
 from app.models.deposit import Deposit, DepositStatus
 from app.models.transaction import Transaction, TransactionType
@@ -86,9 +87,25 @@ async def get_deposit(
 # Webhook Pix (funciona com mock e preparado para Mercado Pago real)
 @router.post("/webhook/pix")
 async def pix_webhook(
+    request: Request,
     data: dict,
     db: AsyncSession = Depends(get_db),
 ):
+    # Verificar assinatura do webhook (se configurada)
+    webhook_secret = settings.PIX_WEBHOOK_SECRET
+    if webhook_secret:
+        signature = request.headers.get("X-Signature", "")
+        import hashlib, hmac
+        body = await request.body()
+        expected = hmac.new(webhook_secret.encode(), body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(f"sha256={expected}", signature):
+            AuditLogger.suspicious_request(
+                ip=request.client.host if request.client else "unknown",
+                path="/api/deposits/webhook/pix",
+                reason="invalid webhook signature",
+            )
+            raise HTTPException(status_code=403, detail="Assinatura inválida")
+
     pix_provider = get_pix_provider(settings.model_dump())
     result = pix_provider.handle_webhook(data)
 
