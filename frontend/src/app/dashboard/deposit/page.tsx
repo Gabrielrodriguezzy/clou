@@ -23,7 +23,7 @@ export default function DepositPage() {
     e.preventDefault();
     setError(""); setSuccess(""); setDeposit(null);
     const val = parseFloat(amount);
-    if (isNaN(val) || val < 1) { setError("Valor mínimo: R$ 1,00"); return; }
+    if (isNaN(val) || val < 1.5) { setError("Valor mínimo: R$ 1,50"); return; }
     setLoading(true);
     try {
       const data = await api.post<DepositResponse>("/deposits", { amount: val }, token);
@@ -66,7 +66,7 @@ export default function DepositPage() {
               ))}
             </div>
             <input
-              type="number" step="0.01" min="1" required
+              type="number" step="0.01" min="1.5" required
               value={amount} onChange={e => setAmount(e.target.value)}
               className="input-clou"
               placeholder="Ou digite um valor personalizado"

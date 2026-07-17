@@ -21,8 +21,8 @@ async def create_deposit(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if data.amount < 1:
-        raise HTTPException(status_code=400, detail="Valor mínimo de depósito é R$ 1,00")
+    if data.amount < 1.5:
+        raise HTTPException(status_code=400, detail="Valor mínimo de depósito é R$ 1,50")
 
     fee = round(data.amount * 0.01, 2)  # 1% de taxa
     net_amount = round(data.amount - fee, 2)
