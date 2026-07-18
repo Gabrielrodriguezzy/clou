@@ -191,3 +191,64 @@ async def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     asyncio.run(main())
+
+
+async def process_single_order(order_id: int) -> None:
+    """Processa UM pedido específico (disparado na criação)."""
+    try:
+        engine = create_async_engine(
+            settings.DATABASE_URL,
+            echo=False,
+            pool_size=1,
+            max_overflow=0,
+            pool_timeout=10,
+        )
+        factory = async_sessionmaker(engine, class_=AsyncSession)
+        
+        async with factory() as db:
+            result = await db.execute(select(Order).where(Order.id == order_id))
+            order = result.scalar_one_or_none()
+            if not order or order.status != OrderStatus.PENDING:
+                return
+            
+            provider_result = await db.execute(
+                select(Provider).where(Provider.is_active == True).order_by(Provider.priority).limit(1)
+            )
+            provider = provider_result.scalar_one_or_none()
+            if not provider:
+                return
+            
+            client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY))
+            
+            ps_result = await db.execute(
+                select(ProviderService).where(
+                    ProviderService.provider_id == provider.id,
+                    ProviderService.service_id == order.service_id,
+                )
+            )
+            ps = ps_result.scalar_one_or_none()
+            if not ps:
+                order.status = OrderStatus.ERROR
+                order.notes = "Serviço não mapeado no provedor"
+                await db.commit()
+                return
+            
+            result = await client.add_order(
+                service_id=ps.provider_service_id,
+                link=order.link,
+                quantity=order.quantity,
+            )
+            
+            provider_order_id = result.get("order")
+            if provider_order_id:
+                order.provider_id = provider.id
+                order.provider_order_id = str(provider_order_id)
+                order.status = OrderStatus.PROCESSING
+                order.cost = round(ps.provider_price * (order.quantity / 1000), 2)
+                logger.info(f"Pedido #{order.id} enviado ao provedor. ID: {provider_order_id}")
+            
+            await db.commit()
+        
+        await engine.dispose()
+    except Exception as e:
+        logger.error(f"Erro ao processar pedido #{order_id}: {e}")

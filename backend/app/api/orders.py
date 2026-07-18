@@ -9,6 +9,7 @@ from app.models.service import Service, ServiceStatus
 from app.models.order import Order, OrderStatus
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.order import OrderCreate, OrderResponse
+from app.workers.order_worker import process_single_order
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -72,6 +73,10 @@ async def create_order(
         reference_id=order.id,
     )
     db.add(tx)
+
+    # Disparar processamento do pedido em background
+    import asyncio
+    asyncio.create_task(process_single_order(order.id))
 
     return order
 

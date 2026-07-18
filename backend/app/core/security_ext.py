@@ -10,7 +10,7 @@ from typing import Optional
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
@@ -73,10 +73,14 @@ def encrypt_secret(plaintext: str, master_key: str) -> str:
 
 
 def decrypt_secret(ciphertext: str, master_key: str) -> str:
-    """Descriptografa um secret."""
-    key = _derive_key(master_key)
-    f = Fernet(base64.urlsafe_b64encode(key))
-    return f.decrypt(ciphertext.encode()).decode()
+    """Descriptografa um secret. Se não estiver criptografado, retorna como está."""
+    try:
+        key = _derive_key(master_key)
+        f = Fernet(base64.urlsafe_b64encode(key))
+        return f.decrypt(ciphertext.encode()).decode()
+    except (Exception, InvalidToken):
+        # Pode não estar criptografado (seed inicial, etc)
+        return ciphertext
 
 
 # ─── Audit Log ────────────────────────────────────────────────────────
