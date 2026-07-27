@@ -256,6 +256,23 @@ async def create_coupon(
     }
 
 
+@router.patch("/coupons/{code}")
+async def deactivate_coupon(
+    code: str,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Coupon).where(Coupon.code == code.upper().strip()))
+    coupon = result.scalar_one_or_none()
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Cupom não encontrado")
+
+    coupon.is_active = False
+    await db.flush()
+    await db.refresh(coupon)
+    return {"code": coupon.code, "is_active": coupon.is_active}
+
+
 # ─── Serviços ──────────────────────────────────────────────────────
 
 @router.patch("/services/{service_id}")
