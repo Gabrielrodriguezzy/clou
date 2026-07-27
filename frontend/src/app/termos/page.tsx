@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function TermosPage() {
   return (
     <iframe
-      src={(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/termos"}
+      src="https://clou-production.up.railway.app/termos"
       className="w-full h-screen border-0"
       title="Termos de Uso"
     />

@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function PrivacidadePage() {
   return (
     <iframe
-      src={(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") + "/privacidade"}
+      src="https://clou-production.up.railway.app/privacidade"
       className="w-full h-screen border-0"
       title="Política de Privacidade"
     />
