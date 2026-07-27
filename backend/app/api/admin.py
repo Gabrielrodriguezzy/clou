@@ -427,75 +427,6 @@ async def create_partner(
     )
 
 
-@router.get("/partners/{partner_id}", response_model=PartnerResponse)
-async def get_partner(
-    partner_id: int,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Detalhes de um parceiro específico."""
-    result = await db.execute(select(Partner).where(Partner.id == partner_id))
-    partner = result.scalar_one_or_none()
-    if not partner:
-        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
-    return PartnerResponse(
-        id=partner.id,
-        user_id=partner.user_id,
-        name=partner.name,
-        email=partner.email,
-        ref_code=partner.ref_code,
-        commission_rate=partner.commission_rate,
-        pix_key=partner.pix_key,
-        notes=partner.notes,
-        is_active=partner.is_active,
-        created_at=partner.created_at.isoformat() if partner.created_at else "",
-        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
-    )
-
-
-@router.patch("/partners/{partner_id}", response_model=PartnerResponse)
-async def update_partner(
-    partner_id: int,
-    data: PartnerCreate,
-    admin: User = Depends(get_admin_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Atualizar dados de um parceiro."""
-    result = await db.execute(select(Partner).where(Partner.id == partner_id))
-    partner = result.scalar_one_or_none()
-    if not partner:
-        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
-
-    partner.name = data.name.strip()
-    partner.email = data.email.lower().strip()
-    partner.ref_code = data.ref_code.strip().upper()
-    partner.commission_rate = data.commission_rate
-    partner.pix_key = data.pix_key
-    partner.notes = data.notes
-    await db.flush()
-    await db.refresh(partner)
-
-    AuditLogger.admin_action(
-        admin_id=admin.id, admin_email=admin.email,
-        action=f"update_partner:{partner.id}",
-        target=f"partner:{partner.name}",
-    )
-
-    return PartnerResponse(
-        id=partner.id,
-        user_id=partner.user_id,
-        name=partner.name,
-        email=partner.email,
-        ref_code=partner.ref_code,
-        commission_rate=partner.commission_rate,
-        pix_key=partner.pix_key,
-        notes=partner.notes,
-        is_active=partner.is_active,
-        created_at=partner.created_at.isoformat() if partner.created_at else "",
-        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
-    )
-
-
 @router.get("/partners", response_model=list[PartnerReportItem])
 async def get_partners_report(
     admin: User = Depends(get_admin_user),
@@ -675,3 +606,72 @@ async def list_partner_payouts(
             "paid_at": p.paid_at.isoformat(),
         })
     return output
+
+
+@router.get("/partners/{partner_id}", response_model=PartnerResponse)
+async def get_partner(
+    partner_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detalhes de um parceiro específico."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner = result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    return PartnerResponse(
+        id=partner.id,
+        user_id=partner.user_id,
+        name=partner.name,
+        email=partner.email,
+        ref_code=partner.ref_code,
+        commission_rate=partner.commission_rate,
+        pix_key=partner.pix_key,
+        notes=partner.notes,
+        is_active=partner.is_active,
+        created_at=partner.created_at.isoformat() if partner.created_at else "",
+        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
+    )
+
+
+@router.patch("/partners/{partner_id}", response_model=PartnerResponse)
+async def update_partner(
+    partner_id: int,
+    data: PartnerCreate,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Atualizar dados de um parceiro."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner = result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+
+    partner.name = data.name.strip()
+    partner.email = data.email.lower().strip()
+    partner.ref_code = data.ref_code.strip().upper()
+    partner.commission_rate = data.commission_rate
+    partner.pix_key = data.pix_key
+    partner.notes = data.notes
+    await db.flush()
+    await db.refresh(partner)
+
+    AuditLogger.admin_action(
+        admin_id=admin.id, admin_email=admin.email,
+        action=f"update_partner:{partner.id}",
+        target=f"partner:{partner.name}",
+    )
+
+    return PartnerResponse(
+        id=partner.id,
+        user_id=partner.user_id,
+        name=partner.name,
+        email=partner.email,
+        ref_code=partner.ref_code,
+        commission_rate=partner.commission_rate,
+        pix_key=partner.pix_key,
+        notes=partner.notes,
+        is_active=partner.is_active,
+        created_at=partner.created_at.isoformat() if partner.created_at else "",
+        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
+    )
