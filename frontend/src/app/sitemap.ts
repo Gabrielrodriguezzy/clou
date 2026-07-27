@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clou.gg";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cloustore.online";
   const apiInternal = process.env.API_INTERNAL_URL || "http://backend:8000/api";
   const { blogPosts } = await import("@/data/blog-posts");
 

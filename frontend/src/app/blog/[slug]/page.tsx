@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPostPage({ params }: Props) {
   const post = blogPosts.find((p) => p.slug === params.slug);
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clou.gg";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cloustore.online";
 
   return (
     <div className="min-h-screen bg-slate-950">

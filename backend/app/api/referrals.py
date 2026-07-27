@@ -27,7 +27,7 @@ async def get_referral_stats(
     import base64
     ref_code = base64.urlsafe_b64encode(str(current_user.id).encode()).decode().rstrip("=")
 
-    app_url = "https://clou.gg"
+    app_url = "https://cloustore.online"
     referral_link = f"{app_url}/register?ref={ref_code}"
 
     return ReferralStatsResponse(

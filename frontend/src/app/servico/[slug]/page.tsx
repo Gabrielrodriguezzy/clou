@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ServicePage({ params }: Props) {
   const service: ServiceData | null = await getService(params.slug);
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clou.gg";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cloustore.online";
   const rc = getServiceContent(params.slug);
 
   // Schema Product

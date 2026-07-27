@@ -18,7 +18,6 @@ export default function Header() {
             </div>
             <span className="text-lg font-bold tracking-tight">
               <span className="text-white">Clou</span>
-              <span className="text-slate-500 font-normal">.gg</span>
             </span>
           </Link>
 

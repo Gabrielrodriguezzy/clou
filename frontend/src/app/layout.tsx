@@ -3,7 +3,7 @@ import "./globals.css";
 import JsonLd from "@/components/JsonLd";
 import ThemeProvider from "@/components/ThemeProvider";
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://clou.gg";
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cloustore.online";
 
 export const metadata: Metadata = {
   title: {
