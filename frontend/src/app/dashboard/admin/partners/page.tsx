@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import DashboardLayout from "../../layout";
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -174,7 +173,7 @@ export default function AdminPartnersPage() {
   if (!user) return null;
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -558,6 +557,6 @@ export default function AdminPartnersPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
