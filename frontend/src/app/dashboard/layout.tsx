@@ -22,6 +22,10 @@ const sidebarItems = [
   { icon: "⚙️", label: "Configurações", href: "/dashboard/config" },
 ];
 
+const adminSidebarItems = [
+  { icon: "👥", label: "Parceiros", href: "/dashboard/admin/partners" },
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             );
           })}
+
+          {/* Admin Section */}
+          {(user.role === "superadmin" || user.role === "admin") && (
+            <>
+              <div className="pt-3 pb-1">
+                <p className="text-[10px] text-slate-600 uppercase tracking-wider px-3 font-medium">Administração</p>
+              </div>
+              {adminSidebarItems.map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                      isActive
+                        ? "bg-amber-500/10 text-amber-400 font-medium"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                    }`}
+                  >
+                    <span className="text-base">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* Logout */}
