@@ -11,6 +11,8 @@ from app.models.user import User, UserRole
 from app.models.order import Order, OrderStatus
 from app.models.service import Service, ServiceStatus
 from app.models.coupon import Coupon
+from app.models.referral import Referral, ReferralStatus
+from app.models.partner_payout import PartnerPayout
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -298,3 +300,204 @@ async def update_service(
         "price": service.price,
         "status": service.status.value if hasattr(service.status, "value") else str(service.status),
     }
+
+
+# ─── Parceiros (Grupos de Divulgação) ────────────────────────────────
+
+
+class PartnerReportItem(BaseModel):
+    """Um parceiro (dono de grupo) com seus números consolidados."""
+    partner_id: int
+    partner_name: str
+    partner_email: str
+    ref_code: str
+    referred_count: int
+    total_spent: float
+    commission_5pct: float
+    paid_out: float
+    balance_due: float
+    last_activity: Optional[str] = None
+    status: str  # "active" | "pending" | "inactive"
+
+
+class PartnerPayoutRequest(BaseModel):
+    partner_id: int
+    amount: float = Field(..., gt=0)
+    notes: Optional[str] = None
+
+
+@router.get("/partners", response_model=list[PartnerReportItem])
+async def get_partners_report(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Relatório consolidado de parceiros (donos de grupo).
+    Cada parceiro é um usuário que tem indicações ativas.
+    Commission = 5% do total gasto pelos indicados.
+    """
+    import base64
+
+    # 1. Buscar todos os referrers que têm indicações
+    ref_result = await db.execute(
+        select(Referral.referrer_id, func.count(Referral.id).label("cnt"))
+        .group_by(Referral.referrer_id)
+        .order_by(func.count(Referral.id).desc())
+    )
+    referrer_rows = ref_result.all()
+
+    if not referrer_rows:
+        return []
+
+    # 2. Buscar os dados dos referrers
+    referrer_ids = [r.referrer_id for r in referrer_rows]
+    users_result = await db.execute(
+        select(User).where(User.id.in_(referrer_ids))
+    )
+    users_map = {u.id: u for u in users_result.scalars().all()}
+
+    # 3. Para cada referrer, buscar os referred_ids
+    report = []
+    for row in referrer_rows:
+        referrer_id = row.referrer_id
+        user = users_map.get(referrer_id)
+        if not user:
+            continue
+
+        # Buscar os referred_users deste referrer
+        referred_result = await db.execute(
+            select(Referral.referred_id).where(Referral.referrer_id == referrer_id)
+        )
+        referred_ids = [r.referred_id for r in referred_result.all()]
+
+        if not referred_ids:
+            continue
+
+        referred_count = len(referred_ids)
+
+        # 4. Calcular total gasto pelos indicados (orders completed/in_progress)
+        spent_result = await db.execute(
+            select(func.coalesce(func.sum(Order.charge), 0))
+            .where(
+                Order.user_id.in_(referred_ids),
+                Order.status.in_([OrderStatus.COMPLETED, OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING, OrderStatus.PARTIAL]),
+            )
+        )
+        total_spent = round(float(spent_result.scalar() or 0), 2)
+        commission = round(total_spent * 0.05, 2)
+
+        # 5. Calcular total já pago a este parceiro
+        paid_result = await db.execute(
+            select(func.coalesce(func.sum(PartnerPayout.amount), 0))
+            .where(PartnerPayout.partner_id == referrer_id)
+        )
+        paid_out = round(float(paid_result.scalar() or 0), 2)
+        balance_due = round(commission - paid_out, 2)
+
+        # 6. Última atividade
+        last_order = await db.execute(
+            select(Order.created_at)
+            .where(Order.user_id.in_(referred_ids))
+            .order_by(Order.created_at.desc())
+            .limit(1)
+        )
+        last_activity = last_order.scalar_one_or_none()
+        last_activity_str = last_activity.isoformat() if last_activity else None
+
+        # 7. Código de referência
+        ref_code = base64.urlsafe_b64encode(str(referrer_id).encode()).decode().rstrip("=")
+
+        # 8. Status
+        if paid_out >= commission and commission > 0:
+            status = "paid"
+        elif balance_due >= 20:
+            status = "ready"
+        elif referred_count > 0:
+            status = "active"
+        else:
+            status = "inactive"
+
+        report.append(PartnerReportItem(
+            partner_id=referrer_id,
+            partner_name=user.name,
+            partner_email=user.email,
+            ref_code=ref_code,
+            referred_count=referred_count,
+            total_spent=total_spent,
+            commission_5pct=commission,
+            paid_out=paid_out,
+            balance_due=balance_due,
+            last_activity=last_activity_str,
+            status=status,
+        ))
+
+    return report
+
+
+@router.post("/partners/payout")
+async def register_partner_payout(
+    data: PartnerPayoutRequest,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Registra um pagamento manual feito a um parceiro.
+    O senhor envia o Pix por fora e registra aqui para controle.
+    """
+    # Verificar que o parceiro existe
+    user_result = await db.execute(select(User).where(User.id == data.partner_id))
+    partner = user_result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+
+    payout = PartnerPayout(
+        partner_id=data.partner_id,
+        amount=round(data.amount, 2),
+        notes=data.notes,
+    )
+    db.add(payout)
+    await db.flush()
+    await db.refresh(payout)
+
+    AuditLogger.admin_action(
+        admin_id=admin.id, admin_email=admin.email,
+        action=f"partner_payout:{data.partner_id}",
+        target=f"partner:{partner.email} amount:{data.amount}",
+    )
+
+    return {
+        "id": payout.id,
+        "partner_id": payout.partner_id,
+        "amount": payout.amount,
+        "paid_at": payout.paid_at.isoformat(),
+        "notes": payout.notes,
+    }
+
+
+@router.get("/partners/payouts", response_model=list[dict])
+async def list_partner_payouts(
+    partner_id: Optional[int] = None,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista histórico de pagamentos a parceiros."""
+    query = select(PartnerPayout).order_by(PartnerPayout.paid_at.desc())
+    if partner_id:
+        query = query.where(PartnerPayout.partner_id == partner_id)
+
+    result = await db.execute(query)
+    payouts = result.scalars().all()
+
+    # Enriquecer com nome do parceiro
+    output = []
+    for p in payouts:
+        partner = await db.get(User, p.partner_id)
+        output.append({
+            "id": p.id,
+            "partner_id": p.partner_id,
+            "partner_name": partner.name if partner else "Desconhecido",
+            "amount": p.amount,
+            "notes": p.notes,
+            "paid_at": p.paid_at.isoformat(),
+        })
+    return output

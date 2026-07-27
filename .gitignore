@@ -40,4 +40,8 @@ postgres_data/
 # Logs
 *.log
 .neon
+# Vercel
 .vercel
+
+# Production secrets
+.secret-key-producao
