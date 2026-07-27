@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Optional
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user, decode_access_token
 from app.core.security_ext import limiter, sanitize_text, AuditLogger
 from app.models.user import User, UserRole
 from app.models.referral import Referral, ReferralStatus
+from app.models.partner import Partner
 from app.schemas.user import (
     UserRegister, UserLogin, TokenResponse, UserResponse,
     UserUpdate, PasswordChange, UserPreferences,
@@ -50,23 +52,35 @@ async def register(request: Request, data: UserRegister, db: AsyncSession = Depe
     db.add(user)
     await db.flush()
 
-    # Processar indicação
+    # Processar indicação — suporta ref_code customizado (parceiro) e base64 (padrão)
+    referrer_id: Optional[int] = None
     if data.ref_code:
-        try:
-            decoded = base64.urlsafe_b64decode(data.ref_code + "==")
-            referrer_id = int(decoded.decode())
-            if referrer_id != user.id:
-                referrer = await db.get(User, referrer_id)
-                if referrer:
-                    referral = Referral(
-                        referrer_id=referrer_id,
-                        referred_id=user.id,
-                        referred_email=user.email,
-                        status=ReferralStatus.PENDING,
-                    )
-                    db.add(referral)
-        except Exception:
-            pass  # ref_code inválido, ignorar silenciosamente
+        ref = data.ref_code.strip().upper()
+        # 1. Tentar como código de parceiro (custom, ex: "GRUPOJOÃO")
+        partner_result = await db.execute(
+            select(Partner).where(Partner.ref_code == ref, Partner.is_active == True)
+        )
+        partner = partner_result.scalar_one_or_none()
+        if partner and partner.user_id and partner.user_id != user.id:
+            referrer_id = partner.user_id
+        else:
+            # 2. Fallback: base64 do user_id (padrão)
+            try:
+                decoded = base64.urlsafe_b64decode(data.ref_code + "==")
+                referrer_id = int(decoded.decode())
+            except Exception:
+                pass  # código inválido, ignorar
+
+        if referrer_id and referrer_id != user.id:
+            referrer = await db.get(User, referrer_id)
+            if referrer:
+                referral = Referral(
+                    referrer_id=referrer_id,
+                    referred_id=user.id,
+                    referred_email=user.email,
+                    status=ReferralStatus.PENDING,
+                )
+                db.add(referral)
 
     token = create_access_token({"sub": str(user.id)})
     refresh_token = _create_refresh_token(user.id)

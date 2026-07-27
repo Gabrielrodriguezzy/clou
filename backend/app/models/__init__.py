@@ -10,3 +10,4 @@ from app.models.deposit import Deposit, DepositStatus
 from app.models.coupon import Coupon
 from app.models.referral import Referral, ReferralStatus
 from app.models.partner_payout import PartnerPayout
+from app.models.partner import Partner

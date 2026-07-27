@@ -13,6 +13,7 @@ from app.models.service import Service, ServiceStatus
 from app.models.coupon import Coupon
 from app.models.referral import Referral, ReferralStatus
 from app.models.partner_payout import PartnerPayout
+from app.models.partner import Partner
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -326,19 +327,191 @@ class PartnerPayoutRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class PartnerCreate(BaseModel):
+    """Criar um novo parceiro (dono de grupo)."""
+    name: str = Field(..., min_length=2, max_length=100)
+    email: str = Field(..., max_length=255)
+    ref_code: str = Field(..., min_length=3, max_length=50, pattern=r"^[A-Z0-9_]+$")
+    commission_rate: float = Field(default=5.0, ge=0, le=100)
+    pix_key: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = Field(None, max_length=500)
+
+
+class PartnerResponse(BaseModel):
+    """Resposta com dados do parceiro."""
+    id: int
+    user_id: Optional[int] = None
+    name: str
+    email: str
+    ref_code: str
+    commission_rate: float
+    pix_key: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: bool
+    created_at: str
+    referral_link: str = ""
+
+    model_config = {"from_attributes": True}
+
+
+@router.post("/partners/create", response_model=PartnerResponse)
+async def create_partner(
+    data: PartnerCreate,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cria um novo parceiro e gera o link de indicação para ele."""
+    # Verificar se ref_code já existe
+    exists = await db.execute(select(Partner).where(Partner.ref_code == data.ref_code.strip().upper()))
+    if exists.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Já existe um parceiro com este código")
+
+    # Verificar se email já existe
+    exists_email = await db.execute(select(Partner).where(Partner.email == data.email.lower().strip()))
+    if exists_email.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Já existe um parceiro com este email")
+
+    # Buscar ou criar usuário para o parceiro
+    user_result = await db.execute(select(User).where(User.email == data.email.lower().strip()))
+    user = user_result.scalar_one_or_none()
+    user_id = user.id if user else None
+
+    partner = Partner(
+        user_id=user_id,
+        name=data.name.strip(),
+        email=data.email.lower().strip(),
+        ref_code=data.ref_code.strip().upper(),
+        commission_rate=data.commission_rate,
+        pix_key=data.pix_key,
+        notes=data.notes,
+        is_active=True,
+    )
+    db.add(partner)
+    await db.flush()
+    await db.refresh(partner)
+
+    # Se não existe usuário, criar um (role=user, senha aleatória)
+    if not user:
+        from app.core.security import hash_password
+        import secrets
+        temp_password = secrets.token_urlsafe(8)
+        new_user = User(
+            email=data.email.lower().strip(),
+            password_hash=hash_password(temp_password),
+            name=data.name.strip(),
+            role=UserRole.USER,
+        )
+        db.add(new_user)
+        await db.flush()
+        partner.user_id = new_user.id
+        await db.flush()
+
+    AuditLogger.admin_action(
+        admin_id=admin.id, admin_email=admin.email,
+        action=f"create_partner:{partner.id}",
+        target=f"partner:{partner.name} code:{partner.ref_code}",
+    )
+
+    return PartnerResponse(
+        id=partner.id,
+        user_id=partner.user_id,
+        name=partner.name,
+        email=partner.email,
+        ref_code=partner.ref_code,
+        commission_rate=partner.commission_rate,
+        pix_key=partner.pix_key,
+        notes=partner.notes,
+        is_active=partner.is_active,
+        created_at=partner.created_at.isoformat() if partner.created_at else "",
+        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
+    )
+
+
+@router.get("/partners/{partner_id}", response_model=PartnerResponse)
+async def get_partner(
+    partner_id: int,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detalhes de um parceiro específico."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner = result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+    return PartnerResponse(
+        id=partner.id,
+        user_id=partner.user_id,
+        name=partner.name,
+        email=partner.email,
+        ref_code=partner.ref_code,
+        commission_rate=partner.commission_rate,
+        pix_key=partner.pix_key,
+        notes=partner.notes,
+        is_active=partner.is_active,
+        created_at=partner.created_at.isoformat() if partner.created_at else "",
+        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
+    )
+
+
+@router.patch("/partners/{partner_id}", response_model=PartnerResponse)
+async def update_partner(
+    partner_id: int,
+    data: PartnerCreate,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Atualizar dados de um parceiro."""
+    result = await db.execute(select(Partner).where(Partner.id == partner_id))
+    partner = result.scalar_one_or_none()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Parceiro não encontrado")
+
+    partner.name = data.name.strip()
+    partner.email = data.email.lower().strip()
+    partner.ref_code = data.ref_code.strip().upper()
+    partner.commission_rate = data.commission_rate
+    partner.pix_key = data.pix_key
+    partner.notes = data.notes
+    await db.flush()
+    await db.refresh(partner)
+
+    AuditLogger.admin_action(
+        admin_id=admin.id, admin_email=admin.email,
+        action=f"update_partner:{partner.id}",
+        target=f"partner:{partner.name}",
+    )
+
+    return PartnerResponse(
+        id=partner.id,
+        user_id=partner.user_id,
+        name=partner.name,
+        email=partner.email,
+        ref_code=partner.ref_code,
+        commission_rate=partner.commission_rate,
+        pix_key=partner.pix_key,
+        notes=partner.notes,
+        is_active=partner.is_active,
+        created_at=partner.created_at.isoformat() if partner.created_at else "",
+        referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
+    )
+
+
 @router.get("/partners", response_model=list[PartnerReportItem])
 async def get_partners_report(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Relatório consolidado de parceiros (donos de grupo).
-    Cada parceiro é um usuário que tem indicações ativas.
-    Commission = 5% do total gasto pelos indicados.
+    Relatório consolidado de parceiros.
+    Inclui parceiros registrados (Partner table) e usuários com indicações.
+    Commission usa a taxa configurada no Partner (padrão 5%).
     """
     import base64
 
-    # 1. Buscar todos os referrers que têm indicações
+    # 1. Buscar todos os parceiros registrados + usuários com indicações
+    partners_result = await db.execute(select(Partner).order_by(Partner.created_at.desc()))
+    registered_partners = {p.user_id: p for p in partners_result.scalars().all() if p.user_id}
+
     ref_result = await db.execute(
         select(Referral.referrer_id, func.count(Referral.id).label("cnt"))
         .group_by(Referral.referrer_id)
@@ -346,79 +519,80 @@ async def get_partners_report(
     )
     referrer_rows = ref_result.all()
 
-    if not referrer_rows:
+    # Unir: todos os user_ids que são parceiros ou têm referrals
+    all_ids = set(registered_partners.keys())
+    all_ids.update(r.referrer_id for r in referrer_rows)
+
+    if not all_ids:
         return []
 
-    # 2. Buscar os dados dos referrers
-    referrer_ids = [r.referrer_id for r in referrer_rows]
-    users_result = await db.execute(
-        select(User).where(User.id.in_(referrer_ids))
-    )
+    users_result = await db.execute(select(User).where(User.id.in_(list(all_ids))))
     users_map = {u.id: u for u in users_result.scalars().all()}
 
-    # 3. Para cada referrer, buscar os referred_ids
     report = []
-    for row in referrer_rows:
-        referrer_id = row.referrer_id
-        user = users_map.get(referrer_id)
+    for user_id in sorted(all_ids):
+        user = users_map.get(user_id)
         if not user:
             continue
 
-        # Buscar os referred_users deste referrer
+        # Buscar referred_ids
         referred_result = await db.execute(
-            select(Referral.referred_id).where(Referral.referrer_id == referrer_id)
+            select(Referral.referred_id).where(Referral.referrer_id == user_id)
         )
         referred_ids = [r.referred_id for r in referred_result.all()]
-
-        if not referred_ids:
-            continue
-
         referred_count = len(referred_ids)
 
-        # 4. Calcular total gasto pelos indicados (orders completed/in_progress)
-        spent_result = await db.execute(
-            select(func.coalesce(func.sum(Order.charge), 0))
-            .where(
-                Order.user_id.in_(referred_ids),
-                Order.status.in_([OrderStatus.COMPLETED, OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING, OrderStatus.PARTIAL]),
+        # Calcular total gasto
+        total_spent = 0.0
+        if referred_ids:
+            spent_result = await db.execute(
+                select(func.coalesce(func.sum(Order.charge), 0))
+                .where(
+                    Order.user_id.in_(referred_ids),
+                    Order.status.in_([OrderStatus.COMPLETED, OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING, OrderStatus.PARTIAL]),
+                )
             )
-        )
-        total_spent = round(float(spent_result.scalar() or 0), 2)
-        commission = round(total_spent * 0.05, 2)
+            total_spent = round(float(spent_result.scalar() or 0), 2)
 
-        # 5. Calcular total já pago a este parceiro
+        # Taxa de comissão: do Partner se existir, senão 5%
+        partner = registered_partners.get(user_id)
+        commission_rate = partner.commission_rate if partner else 5.0
+        commission = round(total_spent * commission_rate / 100, 2)
+
+        # Total já pago
         paid_result = await db.execute(
             select(func.coalesce(func.sum(PartnerPayout.amount), 0))
-            .where(PartnerPayout.partner_id == referrer_id)
+            .where(PartnerPayout.partner_id == user_id)
         )
         paid_out = round(float(paid_result.scalar() or 0), 2)
         balance_due = round(commission - paid_out, 2)
 
-        # 6. Última atividade
-        last_order = await db.execute(
-            select(Order.created_at)
-            .where(Order.user_id.in_(referred_ids))
-            .order_by(Order.created_at.desc())
-            .limit(1)
-        )
-        last_activity = last_order.scalar_one_or_none()
-        last_activity_str = last_activity.isoformat() if last_activity else None
+        # Última atividade
+        last_activity = None
+        if referred_ids:
+            last_order = await db.execute(
+                select(Order.created_at)
+                .where(Order.user_id.in_(referred_ids))
+                .order_by(Order.created_at.desc())
+                .limit(1)
+            )
+            last_activity = last_order.scalar_one_or_none()
 
-        # 7. Código de referência
-        ref_code = base64.urlsafe_b64encode(str(referrer_id).encode()).decode().rstrip("=")
+        # Código: usar o do Partner se existir, senão base64
+        ref_code = partner.ref_code if partner else base64.urlsafe_b64encode(str(user_id).encode()).decode().rstrip("=")
 
-        # 8. Status
+        # Status
         if paid_out >= commission and commission > 0:
             status = "paid"
         elif balance_due >= 20:
             status = "ready"
-        elif referred_count > 0:
+        elif referred_count > 0 or partner:
             status = "active"
         else:
             status = "inactive"
 
         report.append(PartnerReportItem(
-            partner_id=referrer_id,
+            partner_id=user_id,
             partner_name=user.name,
             partner_email=user.email,
             ref_code=ref_code,
@@ -427,7 +601,7 @@ async def get_partners_report(
             commission_5pct=commission,
             paid_out=paid_out,
             balance_due=balance_due,
-            last_activity=last_activity_str,
+            last_activity=last_activity.isoformat() if last_activity else None,
             status=status,
         ))
 

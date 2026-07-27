@@ -68,6 +68,20 @@ export default function AdminPartnersPage() {
     submitting: boolean;
   } | null>(null);
 
+  // Modal de criar parceiro
+  const [createModal, setCreateModal] = useState<{
+    name: string;
+    email: string;
+    ref_code: string;
+    commission_rate: number;
+    pix_key: string;
+    notes: string;
+    submitting: boolean;
+  } | null>(null);
+
+  // Modal de detalhes
+  const [detailPartner, setDetailPartner] = useState<PartnerReport | null>(null);
+
   // Histórico de pagamentos
   const [showPayouts, setShowPayouts] = useState(false);
 
@@ -122,11 +136,27 @@ export default function AdminPartnersPage() {
     if (!token) return;
     try {
       await api.post("/admin/partners/payout", { partner_id: partnerId, amount, notes }, token);
-      // Recarregar dados
       await fetchData(token);
       setPayModal(null);
     } catch (e) {
       alert(e instanceof ApiError ? e.detail : "Erro ao registrar pagamento");
+    }
+  }
+
+  async function handleCreatePartner(data: {
+    name: string; email: string; ref_code: string;
+    commission_rate: number; pix_key: string; notes: string;
+  }) {
+    if (!token) return;
+    try {
+      await api.post("/admin/partners/create", {
+        name: data.name, email: data.email, ref_code: data.ref_code.toUpperCase(),
+        commission_rate: data.commission_rate, pix_key: data.pix_key || null, notes: data.notes || null,
+      }, token);
+      await fetchData(token);
+      setCreateModal(null);
+    } catch (e) {
+      alert(e instanceof ApiError ? e.detail : "Erro ao criar parceiro");
     }
   }
 
@@ -151,10 +181,22 @@ export default function AdminPartnersPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Parceiros</h1>
             <p className="text-slate-500 text-sm mt-1">
-              Grupos de divulgação — 5% de comissão sobre vendas dos indicados
+              Gerencie parceiros, veja comissões e registre pagamentos
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() =>
+                setCreateModal({
+                  name: "", email: "", ref_code: "",
+                  commission_rate: 5, pix_key: "", notes: "",
+                  submitting: false,
+                })
+              }
+              className="btn-accent text-xs !py-1.5 !px-3"
+            >
+              + Novo Parceiro
+            </button>
             <button
               onClick={() => setShowPayouts(!showPayouts)}
               className="text-xs border border-slate-700/50 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
@@ -253,10 +295,17 @@ export default function AdminPartnersPage() {
           {partners.length === 0 ? (
             <div className="glass-card p-12 text-center">
               <div className="text-5xl mb-4">🤝</div>
-              <p className="text-slate-500 text-sm mb-1">Nenhum parceiro encontrado</p>
-              <p className="text-xs text-slate-600">
-                Os parceiros aparecerão aqui conforme usuários se cadastrarem pelos links de indicação.
+              <p className="text-slate-500 text-sm mb-1">Nenhum parceiro cadastrado</p>
+              <p className="text-xs text-slate-600 mb-4">
+                Cadastre o primeiro parceiro clicando em <strong>"+ Novo Parceiro"</strong>.
+                Eles receberão um link exclusivo para divulgar.
               </p>
+              <button
+                onClick={() => setCreateModal({ name: "", email: "", ref_code: "", commission_rate: 5, pix_key: "", notes: "", submitting: false })}
+                className="btn-accent text-xs !py-2 !px-4"
+              >
+                + Criar Parceiro
+              </button>
             </div>
           ) : (
             <div className="glass-card overflow-hidden">
@@ -282,7 +331,9 @@ export default function AdminPartnersPage() {
                       >
                         <td className="px-4 py-3">
                           <div>
-                            <p className="text-white text-xs font-medium">{p.partner_name}</p>
+                            <button onClick={() => setDetailPartner(p)} className="text-white text-xs font-medium hover:text-emerald-400 transition-colors text-left">
+                              {p.partner_name}
+                            </button>
                             <p className="text-slate-600 text-[10px]">{p.partner_email}</p>
                             <code className="text-[10px] text-slate-600 bg-slate-800/50 px-1 py-0.5 rounded">
                               {p.ref_code}
@@ -410,6 +461,97 @@ export default function AdminPartnersPage() {
                   {payModal.submitting
                     ? "Registrando..."
                     : `Pagar ${formatBRL(payModal.amount)}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    {/* Modal de Parceiro (detalhes) */}
+      {detailPartner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDetailPartner(null)}>
+          <div className="bg-slate-900 border border-slate-800/50 rounded-xl w-full max-w-lg mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">{detailPartner.partner_name}</h3>
+              <button onClick={() => setDetailPartner(null)} className="text-slate-500 hover:text-white text-xl">&times;</button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between"><span className="text-slate-500">Email</span><span className="text-white">{detailPartner.partner_email}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Código</span><code className="text-emerald-400 bg-slate-800/50 px-2 py-0.5 rounded text-xs">{detailPartner.ref_code}</code></div>
+              <div className="flex justify-between"><span className="text-slate-500">Link de indicação</span></div>
+              <input readOnly value={`https://cloustore.online/register?ref=${detailPartner.ref_code}`}
+                className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-emerald-400 text-xs font-mono"
+                onClick={(e) => (e.target as HTMLInputElement).select()} />
+              <div className="border-t border-slate-800/50 pt-3 grid grid-cols-2 gap-3">
+                <div className="glass-card p-3 text-center">
+                  <p className="text-xs text-slate-500">Indicados</p>
+                  <p className="text-xl font-bold text-white">{detailPartner.referred_count}</p>
+                </div>
+                <div className="glass-card p-3 text-center">
+                  <p className="text-xs text-slate-500">Comissão (5%)</p>
+                  <p className="text-xl font-bold text-emerald-400">{formatBRL(detailPartner.commission_5pct)}</p>
+                </div>
+                <div className="glass-card p-3 text-center">
+                  <p className="text-xs text-slate-500">Já pago</p>
+                  <p className="text-xl font-bold text-slate-400">{formatBRL(detailPartner.paid_out)}</p>
+                </div>
+                <div className="glass-card p-3 text-center">
+                  <p className="text-xs text-slate-500">Saldo</p>
+                  <p className="text-xl font-bold text-amber-400">{formatBRL(detailPartner.balance_due)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Criar Parceiro */}
+      {createModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800/50 rounded-xl w-full max-w-md mx-4 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-4">Novo Parceiro</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Nome do parceiro *</label>
+                <input value={createModal.name} onChange={(e) => setCreateModal({ ...createModal, name: e.target.value })}
+                  placeholder="Ex: Grupo João" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/30" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Email *</label>
+                <input type="email" value={createModal.email} onChange={(e) => setCreateModal({ ...createModal, email: e.target.value })}
+                  placeholder="joao@email.com" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/30" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Código *</label>
+                  <input value={createModal.ref_code} onChange={(e) => setCreateModal({ ...createModal, ref_code: e.target.value.toUpperCase() })}
+                    placeholder="GRUPOJOÃO" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-white text-sm font-mono uppercase focus:outline-none focus:border-emerald-500/30" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 block mb-1">Comissão (%)</label>
+                  <input type="number" value={createModal.commission_rate} onChange={(e) => setCreateModal({ ...createModal, commission_rate: parseFloat(e.target.value) || 5 })}
+                    min="0" max="100" step="0.5" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/30" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Chave Pix (opcional)</label>
+                <input value={createModal.pix_key} onChange={(e) => setCreateModal({ ...createModal, pix_key: e.target.value })}
+                  placeholder="CPF, email ou telefone" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/30" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">Observação (opcional)</label>
+                <input value={createModal.notes} onChange={(e) => setCreateModal({ ...createModal, notes: e.target.value })}
+                  placeholder="Ex: Grupo do Telegram com 500 membros" className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500/30" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setCreateModal(null)} className="flex-1 border border-slate-700/50 text-slate-400 hover:text-white py-2 rounded-lg text-sm transition-colors">Cancelar</button>
+                <button onClick={() => handleCreatePartner({
+                  name: createModal.name, email: createModal.email, ref_code: createModal.ref_code,
+                  commission_rate: createModal.commission_rate, pix_key: createModal.pix_key, notes: createModal.notes,
+                })}
+                  disabled={createModal.submitting || !createModal.name || !createModal.email || !createModal.ref_code}
+                  className="flex-1 btn-accent !py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {createModal.submitting ? "Criando..." : "Criar Parceiro"}
                 </button>
               </div>
             </div>
