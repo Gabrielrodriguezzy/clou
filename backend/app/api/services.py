@@ -41,11 +41,17 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         select(func.count(Service.id)).where(Service.status == ServiceStatus.ACTIVE)
     )
 
+    # Total de itens processados (soma de todas as quantidades dos pedidos)
+    items_count = await db.scalar(
+        select(func.coalesce(func.sum(Order.quantity), 0))
+    )
+
     return StatsResponse(
         total_orders=orders_count or 0,
         total_users=users_count or 0,
         avg_delivery_rate=delivery_rate,
         total_services=services_count or 0,
+        total_items_processed=items_count or 0,
     )
 
 

@@ -80,6 +80,7 @@ export interface StatsResponse {
   total_users: number;
   avg_delivery_rate: number;
   total_services: number;
+  total_items_processed: number;
 }
 
 // ─── Erro ───────────────────────────────────────────────────────────

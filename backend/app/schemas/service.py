@@ -54,3 +54,4 @@ class StatsResponse(BaseModel):
     total_users: int
     avg_delivery_rate: float
     total_services: int
+    total_items_processed: int = 0
