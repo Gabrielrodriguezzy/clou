@@ -13,9 +13,11 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-bold text-sm group-hover:scale-105 transition-transform">
-              C
-            </div>
+            <img
+              src="/logo-clou.png"
+              alt="Clou"
+              className="w-8 h-8 object-contain group-hover:scale-105 transition-transform"
+            />
             <span className="text-lg font-bold tracking-tight">
               <span className="text-white">Clou</span>
             </span>

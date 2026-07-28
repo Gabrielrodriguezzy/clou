@@ -78,9 +78,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Logo */}
         <div className="h-16 flex items-center px-5 border-b border-slate-800/50">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">
-              C
-            </div>
+            <img
+              src="/logo-clou.png"
+              alt="Clou"
+              className="w-8 h-8 object-contain"
+            />
             <span className="text-lg font-bold text-white">Clou</span>
           </Link>
         </div>
