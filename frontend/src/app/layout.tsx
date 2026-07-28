@@ -29,8 +29,9 @@ export const metadata: Metadata = {
       "Compre seguidores, curtidas e visualizações para Instagram, TikTok, YouTube e mais. Entrega rápida, pagamento via Pix.",
   },
   icons: {
-    icon: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: [{ url: "/logo-clou.png", type: "image/png", sizes: "1024x1024" }],
+    apple: [{ url: "/logo-clou.png", sizes: "1024x1024" }],
+    shortcut: "/logo-clou.png",
   },
   robots: {
     index: true,
