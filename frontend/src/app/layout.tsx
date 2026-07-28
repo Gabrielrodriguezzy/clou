@@ -28,6 +28,10 @@ export const metadata: Metadata = {
     description:
       "Compre seguidores, curtidas e visualizações para Instagram, TikTok, YouTube e mais. Entrega rápida, pagamento via Pix.",
   },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
   robots: {
     index: true,
     follow: true,
