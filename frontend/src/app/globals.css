@@ -2,12 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-* {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-}
-
 :root {
   --foreground: #f1f5f9;
   --background: #020617;
@@ -133,4 +127,13 @@ body {
 .glow-pulse-emerald { animation: pulse-glow-emerald 2s ease-in-out infinite; }
 .glow-pulse-amber { animation: pulse-glow-amber 2s ease-in-out infinite; }
 .animate-float { animation: float 3s ease-in-out infinite; }
+
+/* Performance */
+.lazy-section { content-visibility: auto; contain-intrinsic-size: 400px; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up, .animate-fade-in-up-delay-1,
+  .animate-fade-in-up-delay-2, .animate-fade-in-up-delay-3 {
+    animation: none; opacity: 1;
+  }
+}
 

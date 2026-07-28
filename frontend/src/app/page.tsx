@@ -202,10 +202,12 @@ export default function Home() {
       </section>
 
       {/* Diferenciais */}
-      <Diferenciais />
+      <div className="lazy-section">
+        <Diferenciais />
+      </div>
 
       {/* Como Funciona */}
-      <section id="como-funciona" className="max-w-6xl mx-auto px-4 mb-20">
+      <section id="como-funciona" className="lazy-section max-w-6xl mx-auto px-4 mb-20">
         <div className="text-center mb-12">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
             Como Funciona
@@ -254,7 +256,7 @@ export default function Home() {
       </section>
 
       {/* Preços */}
-      <section id="precos" className="max-w-6xl mx-auto px-4 mb-20">
+      <section id="precos" className="lazy-section max-w-6xl mx-auto px-4 mb-20">
         <div className="text-center mb-12">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
             Kits Recomendados
@@ -306,10 +308,12 @@ export default function Home() {
       </section>
 
       {/* Depoimentos */}
-      <Testimonials />
+      <div className="lazy-section">
+        <Testimonials />
+      </div>
 
       {/* FAQ */}
-      <section id="faq" className="max-w-3xl mx-auto px-4 mb-20">
+      <section id="faq" className="lazy-section max-w-3xl mx-auto px-4 mb-20">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
             Perguntas Frequentes
@@ -334,7 +338,7 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="max-w-4xl mx-auto px-4 mb-20">
+      <section className="lazy-section max-w-4xl mx-auto px-4 mb-20">
         <div className="glass-card relative overflow-hidden p-8 sm:p-12 text-center">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 to-cyan-600/5 pointer-events-none" />
           <div className="relative">

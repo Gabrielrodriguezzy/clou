@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import JsonLd from "@/components/JsonLd";
 import ThemeProvider from "@/components/ThemeProvider";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cloustore.online";
 
@@ -60,8 +67,8 @@ const organizationSchema = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className="antialiased min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-gray-200 transition-colors">
+    <html lang="pt-BR" suppressHydrationWarning className={inter.variable}>
+      <body className="antialiased min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-gray-200 transition-colors" style={{ fontFamily: "var(--font-inter), system-ui, -apple-system, sans-serif" }}>
         <ThemeProvider>
           <JsonLd data={organizationSchema} />
           {children}
