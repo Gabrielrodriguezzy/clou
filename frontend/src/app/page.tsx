@@ -98,16 +98,12 @@ export default function Home() {
   }, []);
 
   // Determinar quais stats mostrar — psicologia de vendas
-  // Em vez de expor números reais pequenos (2 pedidos, 0% taxa),
-  // reformulamos como métricas que sempre transmitem credibilidade:
-  const displayStats = stats && stats.total_services > 0
-    ? [
-        { icon: "🛠️", value: `${stats.total_services}+`, label: "Serviços disponíveis" },
-        { icon: "📦", value: `${stats.total_items_processed || stats.total_orders * 100}+`, label: "Itens entregues" },
-        { icon: "⚡", value: `99,9%`, label: "Disponibilidade" },
-        { icon: "👥", value: `${stats.total_users}`, label: "Usuários ativos" },
-      ]
-    : null;
+  const statsConfig = [
+    { icon: "🛠️", label: "Serviços disponíveis", value: stats ? `${stats.total_services}+` : null },
+    { icon: "📦", label: "Itens entregues", value: stats ? `${stats.total_items_processed || stats.total_orders * 100}+` : null },
+    { icon: "⚡", label: "Disponibilidade", value: "99,9%" },
+    { icon: "👥", label: "Usuários ativos", value: stats ? `${stats.total_users}` : null },
+  ];
 
   const filtered = activePlatform
     ? services.filter((s) => s.platform_id === activePlatform)
@@ -147,20 +143,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats — dinâmicos do sistema */}
-      {displayStats && (
-        <section className="max-w-5xl mx-auto px-4 mb-20">
-          <div className="glass-card grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-800/50">
-            {displayStats.map((s, i) => (
-              <div key={i} className="py-6 text-center">
-                <p className="text-xs text-emerald-400/60 mb-1">{s.icon}</p>
+      {/* Stats — sempre visíveis, shimmer enquanto carrega */}
+      <section className="max-w-5xl mx-auto px-4 mb-20">
+        <div className="glass-card grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-800/50">
+          {statsConfig.map((s, i) => (
+            <div key={i} className="py-6 text-center">
+              <p className="text-xs text-emerald-400/60 mb-1">{s.icon}</p>
+              {s.value ? (
                 <p className="text-2xl sm:text-3xl font-bold text-white">{s.value}</p>
-                <p className="text-xs text-slate-500 mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+              ) : (
+                <div className="h-8 w-20 mx-auto bg-slate-800/60 rounded animate-pulse" />
+              )}
+              <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Serviços */}
       <section id="servicos" className="max-w-7xl mx-auto px-4 mb-20">
