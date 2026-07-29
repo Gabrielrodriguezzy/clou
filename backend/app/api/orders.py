@@ -79,6 +79,8 @@ async def create_order(
     db.add(tx)
 
     # Disparar processamento do pedido em background
+    # Commit primeiro para garantir que o pedido exista no banco
+    await db.commit()
     import asyncio
     asyncio.create_task(process_single_order(order.id))
 
