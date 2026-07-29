@@ -4,7 +4,7 @@ from sqlalchemy import select
 from typing import Optional
 from app.core.database import get_db
 from app.core.security import hash_password, verify_password, create_access_token, get_current_user, decode_access_token
-from app.core.security_ext import limiter, sanitize_text, AuditLogger
+from app.core.security_ext import sanitize_text, AuditLogger
 from app.models.user import User, UserRole
 from app.models.referral import Referral, ReferralStatus
 from app.models.partner import Partner
@@ -27,7 +27,6 @@ def _create_refresh_token(user_id: int) -> str:
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def register(request: Request, data: UserRegister, db: AsyncSession = Depends(get_db)):
     import base64
 
@@ -91,7 +90,6 @@ async def register(request: Request, data: UserRegister, db: AsyncSession = Depe
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(get_db)):
     normalized_email = data.email.lower().strip()
     result = await db.execute(select(User).where(User.email == normalized_email))
@@ -114,7 +112,6 @@ async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(ge
 
 
 @router.post("/refresh", response_model=TokenResponse)
-@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
     """Troca refresh token por um novo access token + refresh token (rotação)."""
     auth_header = request.headers.get("Authorization", "")
@@ -176,7 +173,6 @@ async def update_profile(
 
 
 @router.post("/change-password")
-@limiter.limit("5/minute")
 async def change_password(
     request: Request,
     data: PasswordChange,

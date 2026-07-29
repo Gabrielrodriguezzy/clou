@@ -9,12 +9,9 @@ import logging
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.core.security_ext import limiter, AuditLogger
+from app.core.security_ext import rate_limiter, AuditLogger
 from app.api import auth, services, orders, deposits, admin, coupons, referrals
 from app.workers.order_worker import OrderWorker
-
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +53,34 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ─── Rate Limiter ─────────────────────────────────────────────────────
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# ─── Rate Limiter Middleware ────────────────────────────────────────────
+
+RATE_LIMIT_CONFIG = {
+    "/api/auth/login": {"max": 10, "window": 60},
+    "/api/auth/register": {"max": 10, "window": 60},
+    "/api/auth/refresh": {"max": 10, "window": 60},
+    "/api/auth/change-password": {"max": 5, "window": 60},
+}
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """Rate limiting por IP para endpoints sensíveis."""
+    path = request.url.path
+    if path in RATE_LIMIT_CONFIG:
+        config = RATE_LIMIT_CONFIG[path]
+        ip = request.client.host if request.client else "unknown"
+        # Tentar pegar IP real via proxy headers
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            ip = forwarded.split(",")[0].strip()
+        if not rate_limiter.check(path, ip, config["max"], config["window"]):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Muitas requisições. Aguarde um momento antes de tentar novamente."},
+            )
+    response = await call_next(request)
+    return response
 
 # ─── CORS (configurável) ──────────────────────────────────────────────
 cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]

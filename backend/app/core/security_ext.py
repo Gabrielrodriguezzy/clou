@@ -3,22 +3,48 @@ Rate limiting, sanitização, logs de auditoria, criptografia.
 """
 import re
 import json
+import time
 import base64
 import logging
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 logger = logging.getLogger("clou.security")
 
-# ─── Rate Limiter ─────────────────────────────────────────────────────
-# Compartilhado via main.py (injetado como dependência)
-limiter = Limiter(key_func=get_remote_address)
+# ─── Rate Limiter (implementação própria, sem dependência externa) ─────
+
+class RateLimiter:
+    """Rate limiter baseado em sliding window de timestamps.
+
+    Uso:
+        rl = RateLimiter()
+        if not rl.check("login", ip, max_requests=10, window_seconds=60):
+            raise HTTPException(429, "Muitas tentativas. Aguarde um minuto.")
+    """
+
+    def __init__(self):
+        self._buckets: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+
+    def check(self, route_key: str, ip: str, max_requests: int = 10, window_seconds: int = 60) -> bool:
+        """Retorna True se a requisição está dentro do limite, False se deve ser bloqueada."""
+        now = time.time()
+        bucket = self._buckets[route_key][ip]
+        # Limpar timestamps fora da janela
+        cutoff = now - window_seconds
+        while bucket and bucket[0] < cutoff:
+            bucket.pop(0)
+        if len(bucket) >= max_requests:
+            return False
+        bucket.append(now)
+        return True
+
+
+rate_limiter = RateLimiter()
 
 # ─── Sanitização ──────────────────────────────────────────────────────
 
