@@ -69,6 +69,12 @@ const organizationSchema = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className={inter.variable}>
+      <head>
+        <link rel="dns-prefetch" href="https://clou-production.up.railway.app" />
+        <link rel="preconnect" href="https://clou-production.up.railway.app" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+      </head>
       <body className="antialiased min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-gray-200 transition-colors" style={{ fontFamily: "var(--font-inter), system-ui, -apple-system, sans-serif" }}>
         <ThemeProvider>
           <GoogleAnalytics />
