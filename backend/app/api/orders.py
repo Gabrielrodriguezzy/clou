@@ -21,9 +21,9 @@ router = APIRouter(prefix="/api/orders", tags=["orders"])
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(
     data: OrderCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    background_tasks: BackgroundTasks = Depends(BackgroundTasks),
 ):
     # Sanitizar e validar link
     link = sanitize_text(data.link.strip(), max_length=2048)
