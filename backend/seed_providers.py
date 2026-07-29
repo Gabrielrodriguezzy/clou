@@ -13,17 +13,17 @@ async def seed_providers():
     await init_db()
     async with async_session_factory() as db:
         # Verificar se já existe
-        result = await db.execute(select(Provider).where(Provider.name == "SMMPanel.com"))
+        result = await db.execute(select(Provider).where(Provider.name == "JustAnotherPanel"))
         if result.scalar_one_or_none():
-            print("⚠️ Provedor SMMPanel.com já existe. Pulando.")
+            print("⚠️ Provedor JustAnotherPanel já existe. Pulando.")
             return
 
         # Criar provedor
         provider = Provider(
-            name="SMMPanel.com",
-            api_url="https://smmpanel.com/api/v2",
-            api_key="e64ff2c1024309b47b97aa4399524479",
-            description="Provedor principal - seguidores, curtidas, visualizações e mais",
+            name="JustAnotherPanel",
+            api_url="https://justanotherpanel.com/api/v2",
+            api_key="54c8bdf3b400bc18e338a1478c035a54",
+            description="Provedor principal - JAP: seguidores, curtidas, visualizações e mais (5.797 serviços)",
             is_active=True,
             priority=1,
         )
@@ -31,21 +31,27 @@ async def seed_providers():
         await db.flush()
 
         # Mapeamento: service_id -> (provider_service_id, provider_price)
+        # Fonte: https://justanotherpanel.com/api/v2
         mapping = {
-            1: (1861, 0.6425),   # Seguidores Brasileiros -> BR 10K/day No Refill
-            2: (2085, 0.2234),   # Seguidores Mundiais -> Mundial 500K/day
-            3: (1864, 0.3943),   # Seguidores BR + Perfil -> Female BR Refill
-            4: (1769, 0.0549),   # Curtidas Brasileiras -> Non Drop Instant
-            5: (1718, 0.0579),   # Curtidas Instantâneas -> 100K/hour
-            6: (1918, 0.0779),   # (sem mapeamento direto) -> Curtidas HQ
-            7: (1984, 0.0539),   # Vis TikTok -> Ultrafast
-            8: (1662, 0.3067),   # Curtidas TikTok -> 25K/day
-            9: (1663, 0.3171),   # (outro serviço TikTok)
-            10: (1980, 3.7525),  # Seg TikTok -> Refill 30d
-            11: (1644, 0.7425),  # Vis YouTube BR -> Suggested Lifetime
-            12: (1644, 0.7425),  # Vis YouTube Mundial -> Suggested Lifetime
-            13: (1976, 14.40),   # Inscritos YouTube -> 30d Refill
-            16: (796, 0.0529),   # Membros Telegram -> Post Views 50K/day
+            1: (8096, 0.7938),   # Seguidores Brasileiros -> BR 10K/day No Refill
+            2: (720, 0.2125),    # Seguidores Mundiais -> Mundial
+            3: (8095, 0.8125),   # Seguidores BR Feminino -> BR Auto-Refill 30D
+            4: (1865, 0.0413),   # Curtidas Instantâneas -> Likes 10M
+            5: (1865, 0.0413),   # Curtidas 100K/hora -> Likes 10M
+            6: (4265, 0.4038),   # Curtidas Brasileiras -> BR Likes Refill 30D
+            7: (2260, 0.0313),   # Vis TikTok -> Ultrafast
+            8: (10022, 0.0188),  # Curtidas TikTok -> Likes Refill No
+            9: (10023, 0.0200),  # Curtidas TikTok 30d Refill -> Likes Refill 30D
+            10: (8777, 1.25),    # Seg TikTok -> Followers Refill 30D
+            11: (8040, 0.5250),  # Vis YouTube Suggested -> Views 365D Refill
+            12: (6298, 0.5400),  # Vis YouTube 50K/dia -> Views 10K
+            13: (3519, 12.50),   # Inscritos YouTube -> Subs Refill 30D
+            14: (7381, 0.0063),  # Vis Telegram Posts -> Views Fast Non Drop
+            15: (8523, 0.29),    # Membros Telegram -> Members Refill 30D
+            16: (3455, 5.3148),  # Vis YouTube BR -> BR YT Discovery ADS
+            17: (8407, 0.0029),  # Vis Telegram Barato -> Views 1 Post
+            18: (8096, 0.7938),  # Seguidores BR Perfis Reais -> BR No Refill
+            19: (8777, 1.25),    # Seg TikTok HQ -> Followers Refill 30D
         }
 
         for service_id, (ps_id, price) in mapping.items():
@@ -64,7 +70,7 @@ async def seed_providers():
             db.add(ps)
 
         await db.commit()
-        print(f"✅ Provedor SMMPanel.com configurado com {len(mapping)} serviços mapeados!")
+        print(f"✅ Provedor JustAnotherPanel (JAP) configurado com {len(mapping)} serviços mapeados!")
 
 
 if __name__ == "__main__":

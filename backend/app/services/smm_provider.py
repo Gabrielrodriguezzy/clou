@@ -6,7 +6,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-SMMPANEL_API_URL = "https://smmpanel.com/api/v2"
+SMMPANEL_API_URL = "https://justanotherpanel.com/api/v2"
 
 # Configurações de resiliência
 MAX_RETRIES = 2
@@ -15,7 +15,7 @@ HTTP_TIMEOUT = 60.0
 
 
 class SMMPanelClient:
-    """Cliente para integrar com o provedor SMMPanel.com"""
+    """Cliente para integrar com o provedor JustAnotherPanel (JAP)"""
 
     def __init__(self, api_key: str):
         self.api_key = api_key

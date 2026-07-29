@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Popula o banco com serviços reais do SMMPanel.com para o público brasileiro."""
+"""Popula o banco com serviços reais do JustAnotherPanel (JAP) para o público brasileiro."""
 import asyncio, sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -58,10 +58,10 @@ async def seed():
 
         # 3. Provedor
         provider = Provider(
-            name="SMMPanel.com",
-            api_url="https://smmpanel.com/api/v2",
-            api_key="e64ff2c1024309b47b97aa4399524479",
-            description="Provedor principal - seguidores, curtidas, visualizações",
+            name="JustAnotherPanel",
+            api_url="https://justanotherpanel.com/api/v2",
+            api_key="54c8bdf3b400bc18e338a1478c035a54",
+            description="Provedor principal - JAP: seguidores, curtidas, visualizações (5.797 serviços)",
             is_active=True,
             priority=1,
         )
@@ -69,34 +69,35 @@ async def seed():
         await db.flush()
 
         # 4. Serviços organizados
-        # Estrutura: (categoria, slug_cat, [(nome, slug_svc, desc, provedor_id, custo_usd, min, max, tempo, margem)])
+        # Estrutura: (categoria, slug_cat, [(nome, slug_svc, desc, JAP_ID, custo_usd, min, max, tempo, margem)])
+        # Fonte JAP: https://justanotherpanel.com/api/v2
         services_data = [
             # ─── INSTAGRAM ───
             ("Instagram", "instagram", [
                 ("Seguidores", "seguidores", [
                     ("Seguidores Brasil (10K/dia)", "seguidores-brasil-10k",
                      "Seguidores brasileiros reais, entrega super rápida. Sem refill.",
-                     1861, 0.6425, 50, 1000000, "0-2 min", 80),
-                    ("Seguidores Brasil Feminino (365d Refill)", "seguidores-brasil-feminino",
-                     "Seguidores brasileiros femininos com garantia de 365 dias. Melhor custo-benefício.",
-                     1864, 0.3943, 50, 10000, "0-2 min", 150),
-                    ("Seguidores Brasil (20K/dia, Perfis Reais)", "seguidores-brasil-reais",
-                     "Seguidores brasileiros com perfis reais antigos. Alta retenção.",
-                     1862, 2.5010, 50, 500000, "0-10 min", 100),
-                    ("Seguidores Mundiais (500K/dia)", "seguidores-mundiais",
-                     "Seguidores globais, entrega ultrarrápida até 10 milhões.",
-                     2085, 0.2234, 10, 1000000, "0-30 min", 200),
+                     8096, 0.7938, 50, 50000, "1-2h", 60),
+                    ("Seguidores Brasil Feminino (Auto-Refill 30D)", "seguidores-brasil-feminino",
+                     "Seguidores brasileiros com auto-refill de 30 dias. Melhor custo-benefício.",
+                     8095, 0.8125, 50, 50000, "1-2h", 80),
+                    ("Seguidores Brasil (20K/dia)", "seguidores-brasil-reais",
+                     "Seguidores brasileiros com entrega rápida. Alta retenção.",
+                     8096, 0.7938, 50, 50000, "1h", 80),
+                    ("Seguidores Mundiais (100K/dia)", "seguidores-mundiais",
+                     "Seguidores globais, entrega ultrarrápida até 250K.",
+                     720, 0.2125, 10, 250000, "0-1h", 120),
                 ]),
                 ("Curtidas", "curtidas", [
                     ("Curtidas Instantâneas (Non Drop)", "curtidas-instantaneas",
-                     "Curtidas não-drop, entregues em segundos. 100K/hora.",
-                     1769, 0.0549, 10, 50000, "Instantâneo", 300),
+                     "Curtidas não-drop, entregues em segundos. 300K/dia.",
+                     1865, 0.0413, 10, 100000, "Instantâneo", 250),
                     ("Curtidas Brasileiras (30d Refill)", "curtidas-brasileiras-refill",
                      "Curtidas de alta qualidade com 30 dias de garantia.",
-                     1918, 0.0779, 10, 30000, "0-1h", 280),
-                    ("Curtidas (100K/hora, Non Drop)", "curtidas-100k-hora",
+                     4265, 0.4038, 10, 20000, "0-1h", 60),
+                    ("Curtidas (300K/dia)", "curtidas-300k-dia",
                      "Curtidas em alta velocidade. Ideal para posts virais.",
-                     1718, 0.0579, 10, 100000, "0-5 min", 290),
+                     1865, 0.0413, 10, 100000, "0-5 min", 250),
                 ]),
                 ("Visualizações", "visualizacoes", [
                     ("Visualizações Stories", "visualizacoes-stories",
@@ -111,65 +112,59 @@ async def seed():
             ("TikTok", "tiktok", [
                 ("Visualizações", "visualizacoes", [
                     ("Visualizações TikTok (Ultrafast)", "visualizacoes-tiktok-ultrafast",
-                     "Visualizações ultrarrápidas para TikTok. 5M/dia. Melhor preço do mercado! 🔥",
-                     1984, 0.0539, 100, 9500000, "Instantâneo", 250),
-                    ("Visualizações TikTok (Free, Ilimitado)", "visualizacoes-tiktok-free",
-                     "Visualizações para TikTok sem limite máximo. Entrega grátis incluída.",
-                     1840, 0.0789, 100, 2147483647, "0-30 min", 200),
-                    ("Visualizações TikTok (500K/hora)", "visualizacoes-tiktok-500k",
-                     "Visualizações em massa para TikTok. 500K por hora.",
-                     1841, 0.0867, 100, 2147483647, "0-5 min", 180),
+                     "Visualizações ultrarrápidas para TikTok. 10M/dia. Melhor preço!",
+                     2260, 0.0313, 100, 10000000, "Instantâneo", 350),
                 ]),
                 ("Curtidas", "curtidas", [
                     ("Curtidas TikTok (30d Refill)", "curtidas-tiktok-refill",
                      "Curtidas para TikTok com 30 dias de garantia.",
-                     1663, 0.3171, 10, 500000, "0-1h", 150),
+                     10023, 0.0200, 10, 500000, "0-1h", 400),
                     ("Curtidas TikTok (25K/dia)", "curtidas-tiktok-25k",
                      "Curtidas rápidas para TikTok. Sem refill.",
-                     1662, 0.3067, 10, 30000, "0-1h", 150),
+                     10022, 0.0188, 10, 5000000, "0-1h", 500),
                 ]),
                 ("Seguidores", "seguidores", [
                     ("Seguidores TikTok (30d Refill)", "seguidores-tiktok-refill",
                      "Seguidores para TikTok com 30 dias de garantia.",
-                     1980, 3.7525, 10, 50000, "0-24h", 130),
-                    ("Seguidores TikTok (HQ, 100K/dia)", "seguidores-tiktok-hq",
-                     "Seguidores de alta qualidade para TikTok. Entrega rápida.",
-                     1982, 3.7550, 10, 100000, "0-24h", 130),
+                     8777, 1.25, 10, 100000, "0-2h", 100),
+                    ("Seguidores TikTok (HQ)", "seguidores-tiktok-hq",
+                     "Seguidores de alta qualidade para TikTok.",
+                     8777, 1.25, 10, 100000, "0-2h", 100),
                 ]),
             ]),
             # ─── YOUTUBE ───
             ("YouTube", "youtube", [
                 ("Visualizações", "visualizacoes", [
-                    ("Visualizações YouTube (Suggested, Lifetime)", "visualizacoes-youtube-suggested",
-                     "Visualizações sugeridas pelo YouTube. Garantia vitalícia. Melhor custo!",
-                     1644, 0.7425, 100, 300000, "0-60 min", 80),
+                    ("Visualizações YouTube (365d Refill)", "visualizacoes-youtube-refill",
+                     "Visualizações com 365 dias de garantia. Melhor custo!",
+                     8040, 0.5250, 100, 1000000, "0-1h", 120),
                     ("Visualizações YouTube (50K/dia)", "visualizacoes-youtube-50k",
                      "Visualizações rápidas para YouTube. Entrega em minutos.",
-                     1650, 0.7860, 40, 300000, "0-30 min", 80),
-                    ("🇧🇷 Visualizações Únicas Brasil (RAV)", "visualizacoes-youtube-brasil",
-                     "Visualizações únicas brasileiras de alta qualidade. Público real do Brasil.",
-                     887, 4.2500, 100, 500000, "0-24h", 50),
+                     6298, 0.5400, 100, 99991, "0-1h", 100),
+                    ("🇧🇷 Visualizações Únicas Brasil (Discovery)", "visualizacoes-youtube-brasil",
+                     "Visualizações únicas brasileiras Discovery ADS. Zero drop.",
+                     3455, 5.3148, 10000, 10000000, "24h", 40),
                 ]),
                 ("Inscritos", "inscritos", [
                     ("Inscritos YouTube (30d Refill)", "inscritos-youtube-refill",
-                     "Inscritos para YouTube com 30 dias de garantia. Crescimento orgânico.",
-                     1976, 14.40, 10, 5000, "0-48h", 40),
+                     "Inscritos para YouTube com 30 dias de garantia.",
+                     3519, 12.50, 5, 100000, "0-3h", 45),
                 ]),
             ]),
             # ─── TELEGRAM ───
             ("Telegram", "telegram", [
                 ("Visualizações", "visualizacoes", [
-                    ("Visualizações de Posts (50K/dia)", "visualizacoes-telegram-posts",
-                     "Visualizações para posts do Telegram. 50K/dia.",
-                     796, 0.0529, 10, 500000, "0-60 min", 310),
+                    ("Visualizações de Posts (Non Drop)", "visualizacoes-telegram-posts",
+                     "Visualizações para posts do Telegram. Non Drop.",
+                     7381, 0.0063, 10, 500000, "0-1h", 500),
                     ("Visualizações Telegram (Mais Barato)", "visualizacoes-telegram-barato",
                      "Visualizações para qualquer post do Telegram. Preço imbatível.",
-                     1703, 0.0826, 100, 100000, "0-30 min", 200),
+                     8407, 0.0029, 10, 399999, "0-1h", 800),
                 ]),
                 ("Membros", "membros", [
                     ("Membros Grupo/Canal (30d Refill)", "membros-telegram-refill",
                      "Membros para grupos ou canais do Telegram com 30 dias de garantia.",
-                     842, 0.2200, 10, 50000, "0-1h", 200),
+                     8523, 0.29, 10, 100000, "0-1h", 80),
                 ]),
             ]),
         ]
@@ -229,7 +224,7 @@ async def seed():
         print(f"✅ CATÁLOGO CLOU ATUALIZADO!")
         print(f"{'='*60}")
         print(f"   {len(all_services)} serviços em {len(services_data)} categorias")
-        print(f"   {len(provider_services)} mapeamentos com SMMPanel.com")
+        print(f"   {len(provider_services)} mapeamentos com JustAnotherPanel(JAP)")
         print(f"\n📊 PREÇOS (venda em BRL):")
         print(f"{'-'*60}")
         for s in all_services:
