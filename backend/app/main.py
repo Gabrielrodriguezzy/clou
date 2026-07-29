@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import time
 import logging
+import asyncio
 
 from app.core.config import settings
 from app.core.database import init_db
@@ -44,7 +45,25 @@ if settings.ENVIRONMENT == "production":
 async def lifespan(app: FastAPI):
     if settings.ENVIRONMENT != "testing":
         await init_db()
+    # Iniciar worker periodico para atualizar status dos pedidos
+    worker_task = None
+    if settings.ENVIRONMENT != "testing":
+        async def periodic_status_check():
+            worker = OrderWorker()
+            while True:
+                try:
+                    await asyncio.sleep(300)  # 5 minutos
+                    result = await worker.update_order_statuses()
+                    if result > 0:
+                        logger.info(f"Worker: {result} pedidos atualizados")
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.error(f"Worker periodico: {e}")
+        worker_task = asyncio.create_task(periodic_status_check())
     yield
+    if worker_task:
+        worker_task.cancel()
 
 
 app = FastAPI(
