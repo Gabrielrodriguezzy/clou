@@ -99,6 +99,27 @@ if settings.ENVIRONMENT == "production":
     trusted_hosts = [h.replace("https://", "").replace("http://", "").split("/")[0] for h in trusted_hosts]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
+# ─── Cache Middleware (para endpoints GET públicos do catálogo) ───────
+
+CACHE_ENDPOINTS = {
+    "/api/stats": 300,
+    "/api/platforms": 600,
+    "/api/categories": 600,
+    "/api/services": 300,
+}
+
+
+@app.middleware("http")
+async def cache_middleware(request: Request, call_next):
+    """Adiciona Cache-Control em endpoints GET públicos do catálogo."""
+    response = await call_next(request)
+    path = request.url.path
+    if request.method == "GET" and path in CACHE_ENDPOINTS:
+        max_age = CACHE_ENDPOINTS[path]
+        response.headers["Cache-Control"] = f"public, max-age={max_age}, s-maxage={max_age * 2}"
+    return response
+
+
 # ─── Security Headers + Audit ─────────────────────────────────────────
 
 

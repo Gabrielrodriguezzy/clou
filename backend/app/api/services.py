@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -15,17 +14,8 @@ from app.schemas.service import PlatformResponse, CategoryResponse, ServiceRespo
 router = APIRouter(prefix="/api", tags=["catalog"])
 
 
-def _cache(max_age: int = 300):
-    """Retorna headers de cache para respostas GET públicas."""
-    return {
-        "Cache-Control": f"public, max-age={max_age}, s-maxage={max_age * 2}",
-        "CDN-Cache-Control": f"public, max-age={max_age}",
-    }
-
-
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats(db: AsyncSession = Depends(get_db)):
-    """Retorna estatísticas reais do sistema para a landing page."""
     orders_count = await db.scalar(select(func.count(Order.id)))
     users_count = await db.scalar(select(func.count(User.id)))
 
@@ -48,15 +38,12 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         select(func.coalesce(func.sum(Order.quantity), 0))
     )
 
-    return JSONResponse(
-        content=StatsResponse(
-            total_orders=orders_count or 0,
-            total_users=users_count or 0,
-            avg_delivery_rate=delivery_rate,
-            total_services=services_count or 0,
-            total_items_processed=items_count or 0,
-        ).model_dump(),
-        headers=_cache(300),
+    return StatsResponse(
+        total_orders=orders_count or 0,
+        total_users=users_count or 0,
+        avg_delivery_rate=delivery_rate,
+        total_services=services_count or 0,
+        total_items_processed=items_count or 0,
     )
 
 
@@ -65,11 +52,7 @@ async def list_platforms(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Platform).where(Platform.is_active == True).order_by(Platform.sort_order)
     )
-    data = result.scalars().all()
-    return JSONResponse(
-        content=[PlatformResponse.model_validate(p).model_dump() for p in data],
-        headers=_cache(600),
-    )
+    return result.scalars().all()
 
 
 @router.get("/categories", response_model=list[CategoryResponse])
@@ -81,11 +64,7 @@ async def list_categories(
     if platform_id:
         query = query.where(Category.platform_id == platform_id)
     result = await db.execute(query.order_by(Category.sort_order))
-    data = result.scalars().all()
-    return JSONResponse(
-        content=[CategoryResponse.model_validate(c).model_dump() for c in data],
-        headers=_cache(600),
-    )
+    return result.scalars().all()
 
 
 @router.get("/services", response_model=list[ServiceResponse])
@@ -104,11 +83,7 @@ async def list_services(
     if category_id:
         query = query.where(Service.category_id == category_id)
     result = await db.execute(query.order_by(Service.sort_order))
-    data = result.scalars().all()
-    return JSONResponse(
-        content=[ServiceResponse.model_validate(s).model_dump() for s in data],
-        headers=_cache(300),
-    )
+    return result.scalars().all()
 
 
 @router.get("/services/by-slug/{slug}", response_model=ServiceResponse)
@@ -121,10 +96,7 @@ async def get_service_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
     service = result.scalar_one_or_none()
     if not service:
         raise HTTPException(status_code=404, detail="Serviço não encontrado")
-    return JSONResponse(
-        content=ServiceResponse.model_validate(service).model_dump(),
-        headers=_cache(300),
-    )
+    return service
 
 
 @router.get("/services/{service_id}", response_model=ServiceResponse)
@@ -137,7 +109,4 @@ async def get_service(service_id: int, db: AsyncSession = Depends(get_db)):
     service = result.scalar_one_or_none()
     if not service:
         raise HTTPException(status_code=404, detail="Serviço não encontrado")
-    return JSONResponse(
-        content=ServiceResponse.model_validate(service).model_dump(),
-        headers=_cache(300),
-    )
+    return service
