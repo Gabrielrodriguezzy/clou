@@ -114,6 +114,7 @@ async def login(request: Request, data: UserLogin, db: AsyncSession = Depends(ge
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
     """Troca refresh token por um novo access token + refresh token (rotação)."""
     auth_header = request.headers.get("Authorization", "")
@@ -175,7 +176,9 @@ async def update_profile(
 
 
 @router.post("/change-password")
+@limiter.limit("5/minute")
 async def change_password(
+    request: Request,
     data: PasswordChange,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
