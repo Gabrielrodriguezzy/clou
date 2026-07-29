@@ -23,7 +23,10 @@ const sidebarItems = [
 ];
 
 const adminSidebarItems = [
-  { icon: "👥", label: "Parceiros", href: "/dashboard/admin/partners" },
+  { icon: "📊", label: "Admin", href: "/dashboard/admin" },
+  { icon: "👥", label: "Usuários", href: "/dashboard/admin/users" },
+  { icon: "🏷️", label: "Cupons", href: "/dashboard/admin/coupons" },
+  { icon: "🤝", label: "Parceiros", href: "/dashboard/admin/partners" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
