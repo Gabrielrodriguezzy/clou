@@ -627,11 +627,15 @@ class WeeklyPartnerStats(BaseModel):
 async def get_partners_weekly_stats(
     admin: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
+    start_date: Optional[str] = Query(None, description="Filtrar de (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="Filtrar até (YYYY-MM-DD)"),
 ):
-    """Retorna dados de revendedores com quebra semanal de indicações e gastos."""
+    """Retorna dados de revendedores com quebra semanal de indicações e gastos.
+    Opcional: filtrar por período com start_date e end_date (YYYY-MM-DD).
+    """
     import base64
     from collections import defaultdict
-    from datetime import timedelta
+    from datetime import timedelta, date as date_type
 
     month_names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
@@ -645,14 +649,31 @@ async def get_partners_weekly_stats(
     # Mapear user_id -> partner
     partner_by_user = {p.user_id: p for p in partners if p.user_id}
 
+    # Converter datas
+    dt_start = None
+    dt_end = None
+    if start_date:
+        try:
+            dt_start = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(400, "start_date inválido. Use YYYY-MM-DD")
+    if end_date:
+        try:
+            dt_end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(400, "end_date inválido. Use YYYY-MM-DD")
+
     # Buscar referrals de todos os parceiros
     partner_user_ids = [p.user_id for p in partners if p.user_id]
     if not partner_user_ids:
         return []
 
-    referrals_result = await db.execute(
-        select(Referral).where(Referral.referrer_id.in_(partner_user_ids))
-    )
+    ref_query = select(Referral).where(Referral.referrer_id.in_(partner_user_ids))
+    if dt_start:
+        ref_query = ref_query.where(Referral.created_at >= dt_start)
+    if dt_end:
+        ref_query = ref_query.where(Referral.created_at <= dt_end)
+    referrals_result = await db.execute(ref_query)
     all_referrals = referrals_result.scalars().all()
 
     # Agrupar referrals por referrer
@@ -670,12 +691,15 @@ async def get_partners_weekly_stats(
     # Buscar pedidos dos indicados
     referred_orders = []
     if all_referred_ids:
-        orders_result = await db.execute(
-            select(Order).where(
-                Order.user_id.in_(all_referred_ids),
-                Order.status.in_([OrderStatus.COMPLETED, OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING, OrderStatus.PARTIAL]),
-            ).order_by(Order.created_at.desc())
+        orders_query = select(Order).where(
+            Order.user_id.in_(all_referred_ids),
+            Order.status.in_([OrderStatus.COMPLETED, OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING, OrderStatus.PARTIAL]),
         )
+        if dt_start:
+            orders_query = orders_query.where(Order.created_at >= dt_start)
+        if dt_end:
+            orders_query = orders_query.where(Order.created_at <= dt_end)
+        orders_result = await db.execute(orders_query.order_by(Order.created_at.desc()))
         referred_orders = orders_result.scalars().all()
 
     # Agrupar pedidos por user_id

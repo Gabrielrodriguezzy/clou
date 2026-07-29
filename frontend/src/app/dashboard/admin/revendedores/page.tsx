@@ -211,11 +211,27 @@ export default function RevendedoresPage() {
   const [payWeek, setPayWeek] = useState<{ partner: Revendedor; week: WeekData } | null>(null);
   const [showPayoutsList, setShowPayoutsList] = useState(false);
 
-  const fetchData = async (t: string) => {
+  // Filtro de data
+  const hoje = new Date();
+  const fimSemana = new Date(hoje);
+  fimSemana.setDate(hoje.getDate() + (6 - hoje.getDay()));
+  const inicioSemana = new Date(fimSemana);
+  inicioSemana.setDate(fimSemana.getDate() - 6);
+
+  const fmt = (d: Date) => d.toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(fmt(inicioSemana));
+  const [endDate, setEndDate] = useState(fmt(fimSemana));
+
+  const fetchData = async (t: string, start?: string, end?: string) => {
     setLoading(true); setError(null);
     try {
+      const params = new URLSearchParams();
+      if (start) params.set("start_date", start);
+      if (end) params.set("end_date", end);
+      const qs = params.toString();
+      const url = `/admin/partners/weekly-stats${qs ? `?${qs}` : ""}`;
       const [revData, payData] = await Promise.all([
-        api.get<Revendedor[]>("/admin/partners/weekly-stats", t),
+        api.get<Revendedor[]>(url, t),
         api.get<PayoutRecord[]>("/admin/partners/payouts", t),
       ]);
       setData(revData); setPayouts(payData);
@@ -230,7 +246,7 @@ export default function RevendedoresPage() {
     setToken(t);
     api.me(t).then((u) => {
       if (u.role !== "superadmin" && u.role !== "admin") return;
-      fetchData(t);
+      fetchData(t, startDate, endDate);
     }).catch(() => {
       localStorage.removeItem("clou_token");
       window.location.href = "/login";
@@ -276,7 +292,7 @@ export default function RevendedoresPage() {
         <h2 className="text-xl font-semibold text-white mb-2">Nenhum revendedor ainda</h2>
         <p className="text-slate-400 max-w-md mx-auto mb-6">Crie seu primeiro revendedor para gerar um link de indicação e acompanhar as vendas semanais.</p>
         <button onClick={() => setShowCriar(true)} className="btn-primary text-sm !py-2 !px-5">+ Criar Revendedor</button>
-        <CriarRevendedorModal open={showCriar} onClose={() => setShowCriar(false)} onCreated={() => { setShowCriar(false); fetchData(token); }} token={token} />
+        <CriarRevendedorModal open={showCriar} onClose={() => setShowCriar(false)} onCreated={() => { setShowCriar(false); fetchData(token, startDate, endDate); }} token={token} />
       </div>
     );
   }
@@ -285,21 +301,52 @@ export default function RevendedoresPage() {
 
   const totalComissaoPagar = data.reduce((a, b) => a + b.balance_due, 0);
   const totalPago = data.reduce((a, b) => a + b.paid_out, 0);
+  const totalPeriodo = data.reduce((a, b) => a + b.total_spent, 0);
+  const totalComissao = data.reduce((a, b) => a + b.commission_due, 0);
 
   // ─── Render ─────────────────────────────────────────────────────
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">💼 Revendedores</h1>
-          <p className="text-sm text-slate-400 mt-1">Crie revendedores, acompanhe vendas por semana e registre pagamentos.</p>
+          <p className="text-sm text-slate-400 mt-1">Crie revendedores, acompanhe vendas e registre pagamentos.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowPayoutsList(!showPayoutsList)} className="text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg border border-slate-700/50 hover:bg-slate-800/50 transition-colors">
             📋 Histórico
           </button>
           <button onClick={() => setShowCriar(true)} className="btn-primary text-sm !py-2 !px-4">+ Novo Revendedor</button>
+        </div>
+      </div>
+
+      {/* Date Filter */}
+      <div className="glass-card p-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">De</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); fetchData(token, e.target.value, endDate); }}
+              className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500/50"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">Até</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); fetchData(token, startDate, e.target.value); }}
+              className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-emerald-500/50"
+            />
+          </div>
+          <div className="text-xs text-slate-500 sm:ml-2">
+            {data && data.length > 0 && (
+              <span>Período: <strong className="text-white">{formatBRL(totalPeriodo)}</strong> vendido · <strong className="text-amber-400">{formatBRL(totalComissao)}</strong> comissão</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -484,12 +531,12 @@ export default function RevendedoresPage() {
       </div>
 
       {/* Modais */}
-      <CriarRevendedorModal open={showCriar} onClose={() => setShowCriar(false)} onCreated={() => { setShowCriar(false); fetchData(token); }} token={token} />
+      <CriarRevendedorModal open={showCriar} onClose={() => setShowCriar(false)} onCreated={() => { setShowCriar(false); fetchData(token, startDate, endDate); }} token={token} />
       {payWeek && (
         <PagarSemanaModal
           open={true}
           onClose={() => setPayWeek(null)}
-          onPaid={() => { setPayWeek(null); fetchData(token); }}
+          onPaid={() => { setPayWeek(null); fetchData(token, startDate, endDate); }}
           token={token}
           partnerName={payWeek.partner.partner_name}
           weekLabel={payWeek.week.week_label}
