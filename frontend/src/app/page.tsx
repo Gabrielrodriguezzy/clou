@@ -374,7 +374,7 @@ export default function Home() {
               <a href="/blog" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Blog</a>
               <a href="/termos" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Termos</a>
               <a href="/privacidade" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Privacidade</a>
-              <a href="#" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Contato</a>
+              <a href="/contato" className="text-xs text-slate-600 hover:text-slate-400 transition-colors">Contato</a>
             </div>
             <p className="text-xs text-slate-700">Feito com dedicação para impulsionar seu crescimento digital.</p>
           </div>
