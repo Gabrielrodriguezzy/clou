@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload
@@ -23,6 +23,7 @@ async def create_order(
     data: OrderCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends(BackgroundTasks),
 ):
     # Sanitizar e validar link
     link = sanitize_text(data.link.strip(), max_length=2048)
@@ -81,8 +82,7 @@ async def create_order(
     # Disparar processamento do pedido em background
     # Commit primeiro para garantir que o pedido exista no banco
     await db.commit()
-    import asyncio
-    asyncio.create_task(process_single_order(order.id))
+    background_tasks.add_task(process_single_order, order.id)
 
     return order
 
