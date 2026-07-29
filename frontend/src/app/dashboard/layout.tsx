@@ -17,6 +17,7 @@ const sidebarItems = [
   { icon: "📊", label: "Visão Geral", href: "/dashboard" },
   { icon: "🛒", label: "Comprar Serviços", href: "/dashboard/comprar" },
   { icon: "📋", label: "Meus Pedidos", href: "/dashboard/pedidos" },
+  { icon: "📱", label: "Meus Perfis", href: "/dashboard/perfis" },
   { icon: "💳", label: "Depositar", href: "/dashboard/deposit" },
   { icon: "🤝", label: "Indicar e Ganhar", href: "/dashboard/indicar" },
   { icon: "⚙️", label: "Configurações", href: "/dashboard/config" },
@@ -29,6 +30,7 @@ const adminSidebarItems = [
   { icon: "🏷️", label: "Cupons", href: "/dashboard/admin/coupons" },
   { icon: "🛠️", label: "Serviços", href: "/dashboard/admin/services" },
   { icon: "🤝", label: "Parceiros", href: "/dashboard/admin/partners" },
+  { icon: "💼", label: "Revendedores", href: "/dashboard/admin/revendedores" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

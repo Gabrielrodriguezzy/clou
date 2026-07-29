@@ -1,14 +1,18 @@
+from datetime import datetime, timezone, timedelta
+from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.orm import joinedload
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.security_ext import sanitize_text, validate_link, AuditLogger
 from app.models.user import User
 from app.models.service import Service, ServiceStatus
 from app.models.order import Order, OrderStatus
+from app.models.platform import Platform
 from app.models.transaction import Transaction, TransactionType
-from app.schemas.order import OrderCreate, OrderResponse
+from app.schemas.order import OrderCreate, OrderResponse, ProfileOrdersResponse, ProfileGroup, ProfileSummary, WeekGroup, WeekOrderItem
 from app.workers.order_worker import process_single_order
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -96,6 +100,119 @@ async def list_orders(
         .limit(limit)
     )
     return result.scalars().all()
+
+
+@router.get("/by-profile", response_model=ProfileOrdersResponse)
+async def orders_by_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Agrupa pedidos por link (perfil) com quebra semanal."""
+    # Buscar todos os pedidos do usuário com service + platform
+    result = await db.execute(
+        select(Order, Service, Platform)
+        .join(Service, Order.service_id == Service.id)
+        .join(Platform, Service.platform_id == Platform.id)
+        .where(Order.user_id == current_user.id)
+        .order_by(Order.created_at.desc())
+    )
+    rows = result.all()
+
+    if not rows:
+        return ProfileOrdersResponse(profiles=[], summary=ProfileSummary(total_profiles=0, total_spent=0, total_orders=0))
+
+    # Agrupar por link
+    profiles_map: dict[str, dict] = {}
+
+    for order, service, platform in rows:
+        link = order.link
+        if link not in profiles_map:
+            profiles_map[link] = {
+                "link": link,
+                "platform": platform.name,
+                "orders": [],
+                "total_spent": 0.0,
+            }
+        p = profiles_map[link]
+        p["orders"].append({
+            "id": order.id,
+            "service_name": service.name,
+            "platform_name": platform.name,
+            "quantity": order.quantity,
+            "charge": order.charge,
+            "status": order.status.value if hasattr(order.status, "value") else order.status,
+            "created_at": order.created_at,
+        })
+        p["total_spent"] += order.charge
+
+    profiles_list = []
+    total_all_spent = 0.0
+    total_all_orders = 0
+
+    for link, data in profiles_map.items():
+        orders = data["orders"]
+        total_all_spent += data["total_spent"]
+        total_all_orders += len(orders)
+
+        # Agrupar por semana
+        weeks_map: dict[str, dict] = {}
+        for o in orders:
+            dt = o["created_at"]
+            if dt.tzinfo:
+                dt = dt.astimezone(timezone.utc)
+            # Segunda-feira da semana
+            monday = dt - timedelta(days=dt.weekday())
+            week_key = monday.strftime("%Y-%m-%d")
+            week_start_dt = monday
+
+            if week_key not in weeks_map:
+                sunday = monday + timedelta(days=6)
+                month_names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+                week_num = week_start_dt.isocalendar()[1]
+                label = f"Semana {week_num} ({week_start_dt.day} {month_names[week_start_dt.month-1]} - {sunday.day} {month_names[sunday.month-1]})"
+                weeks_map[week_key] = {
+                    "week_start": week_key,
+                    "week_label": label,
+                    "orders": [],
+                    "total_spent": 0.0,
+                }
+            w = weeks_map[week_key]
+            w["orders"].append(WeekOrderItem(**o))
+            w["total_spent"] += o["charge"]
+
+        # Ordenar semanas da mais recente para a mais antiga
+        sorted_weeks = sorted(weeks_map.values(), key=lambda w: w["week_start"], reverse=True)
+        week_groups = [
+            WeekGroup(
+                week_start=w["week_start"],
+                week_label=w["week_label"],
+                orders_count=len(w["orders"]),
+                total_spent=round(w["total_spent"], 2),
+                orders=w["orders"],
+            )
+            for w in sorted_weeks
+        ]
+
+        dates = sorted([o["created_at"] for o in orders], reverse=True)
+
+        profiles_list.append(ProfileGroup(
+            link=link,
+            platform=data["platform"],
+            total_spent=round(data["total_spent"], 2),
+            total_orders=len(orders),
+            first_order=dates[-1],
+            last_order=dates[0],
+            weeks=week_groups,
+        ))
+
+    return ProfileOrdersResponse(
+        profiles=profiles_list,
+        summary=ProfileSummary(
+            total_profiles=len(profiles_list),
+            total_spent=round(total_all_spent, 2),
+            total_orders=total_all_orders,
+        ),
+    )
 
 
 @router.get("/{order_id}", response_model=OrderResponse)

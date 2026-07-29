@@ -608,6 +608,193 @@ async def list_partner_payouts(
     return output
 
 
+class WeeklyPartnerStats(BaseModel):
+    partner_id: int
+    partner_name: str
+    ref_code: str
+    commission_rate: float
+    referral_link: str
+    pix_key: str | None = None
+    total_referred: int
+    total_spent: float
+    commission_due: float
+    paid_out: float
+    balance_due: float
+    weeks: list[dict]
+
+
+@router.get("/partners/weekly-stats", response_model=list[WeeklyPartnerStats])
+async def get_partners_weekly_stats(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna dados de revendedores com quebra semanal de indicações e gastos."""
+    import base64
+    from collections import defaultdict
+    from datetime import timedelta
+
+    month_names = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+    # Buscar todos os parceiros
+    partners_result = await db.execute(select(Partner).order_by(Partner.created_at.desc()))
+    partners = partners_result.scalars().all()
+
+    if not partners:
+        return []
+
+    # Mapear user_id -> partner
+    partner_by_user = {p.user_id: p for p in partners if p.user_id}
+
+    # Buscar referrals de todos os parceiros
+    partner_user_ids = [p.user_id for p in partners if p.user_id]
+    if not partner_user_ids:
+        return []
+
+    referrals_result = await db.execute(
+        select(Referral).where(Referral.referrer_id.in_(partner_user_ids))
+    )
+    all_referrals = referrals_result.scalars().all()
+
+    # Agrupar referrals por referrer
+    referrals_by_referrer: dict[int, list[Referral]] = defaultdict(list)
+    for r in all_referrals:
+        referrals_by_referrer[r.referrer_id].append(r)
+
+    # Buscar dados dos indicados
+    all_referred_ids = [r.referred_id for r in all_referrals]
+    referred_users_map = {}
+    if all_referred_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(all_referred_ids)))
+        referred_users_map = {u.id: u for u in users_result.scalars().all()}
+
+    # Buscar pedidos dos indicados
+    referred_orders = []
+    if all_referred_ids:
+        orders_result = await db.execute(
+            select(Order).where(
+                Order.user_id.in_(all_referred_ids),
+                Order.status.in_([OrderStatus.COMPLETED, OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING, OrderStatus.PARTIAL]),
+            ).order_by(Order.created_at.desc())
+        )
+        referred_orders = orders_result.scalars().all()
+
+    # Agrupar pedidos por user_id
+    orders_by_user: dict[int, list[Order]] = defaultdict(list)
+    for o in referred_orders:
+        orders_by_user[o.user_id].append(o)
+
+    # Total pago por parceiro
+    paid_result = await db.execute(
+        select(PartnerPayout.partner_id, func.coalesce(func.sum(PartnerPayout.amount), 0))
+        .group_by(PartnerPayout.partner_id)
+    )
+    paid_map: dict[int, float] = {}
+    for row in paid_result.all():
+        paid_map[row[0]] = round(float(row[1]), 2)
+
+    result = []
+
+    for partner in partners:
+        if not partner.user_id:
+            continue
+
+        user_id = partner.user_id
+        referrals = referrals_by_referrer.get(user_id, [])
+        total_referred = len(referrals)
+
+        # Calcular total gasto + weekly breakdown
+        total_spent = 0.0
+        weeks_map: dict[str, dict] = {}
+        all_dates_for_partner = set()
+
+        for ref in referrals:
+            ref_dt = ref.created_at
+            if ref_dt.tzinfo:
+                ref_dt = ref_dt.astimezone(timezone.utc)
+            all_dates_for_partner.add(ref_dt)
+
+            # Agrupar por semana
+            monday = ref_dt - timedelta(days=ref_dt.weekday())
+            week_key = monday.strftime("%Y-%m-%d")
+
+            if week_key not in weeks_map:
+                sunday = monday + timedelta(days=6)
+                week_num = monday.isocalendar()[1]
+                label = f"Semana {week_num} ({monday.day} {month_names[monday.month-1]} - {sunday.day} {month_names[sunday.month-1]})"
+                weeks_map[week_key] = {
+                    "week_start": week_key,
+                    "week_label": label,
+                    "new_referrals": 0,
+                    "active_referrals": set(),
+                    "total_spent": 0.0,
+                }
+            weeks_map[week_key]["new_referrals"] += 1
+
+            # Pegar pedidos do indicado
+            user_orders = orders_by_user.get(ref.referred_id, [])
+            spent = sum(o.charge for o in user_orders)
+            total_spent += spent
+
+            if user_orders:
+                weeks_map[week_key]["active_referrals"].add(ref.referred_id)
+
+            # Distribuir gastos por semana do pedido, não da indicação
+            for o in user_orders:
+                odt = o.created_at
+                if odt.tzinfo:
+                    odt = odt.astimezone(timezone.utc)
+                om = odt - timedelta(days=odt.weekday())
+                owk = om.strftime("%Y-%m-%d")
+
+                if owk not in weeks_map:
+                    sunday = om + timedelta(days=6)
+                    week_num = om.isocalendar()[1]
+                    label = f"Semana {week_num} ({om.day} {month_names[om.month-1]} - {sunday.day} {month_names[sunday.month-1]})"
+                    weeks_map[owk] = {
+                        "week_start": owk,
+                        "week_label": label,
+                        "new_referrals": 0,
+                        "active_referrals": set(),
+                        "total_spent": 0.0,
+                    }
+                weeks_map[owk]["total_spent"] += o.charge
+
+        commission_rate = partner.commission_rate
+        commission_due = round(total_spent * commission_rate / 100, 2)
+        paid_out = paid_map.get(user_id, 0.0)
+        balance_due = round(commission_due - paid_out, 2)
+
+        # Montar weeks
+        sorted_weeks = sorted(weeks_map.values(), key=lambda w: w["week_start"], reverse=True)
+        weeks_data = []
+        for w in sorted_weeks:
+            weeks_data.append({
+                "week_start": w["week_start"],
+                "week_label": w["week_label"],
+                "new_referrals": w["new_referrals"],
+                "active_referrals": len(w["active_referrals"]),
+                "total_spent": round(w["total_spent"], 2),
+                "commission": round(w["total_spent"] * commission_rate / 100, 2),
+            })
+
+        result.append(WeeklyPartnerStats(
+            partner_id=user_id,
+            partner_name=partner.name,
+            ref_code=partner.ref_code,
+            commission_rate=commission_rate,
+            referral_link=f"https://cloustore.online/register?ref={partner.ref_code}",
+            pix_key=partner.pix_key,
+            total_referred=total_referred,
+            total_spent=round(total_spent, 2),
+            commission_due=commission_due,
+            paid_out=paid_out,
+            balance_due=balance_due,
+            weeks=weeks_data,
+        ))
+
+    return result
+
+
 @router.get("/partners/{partner_id}", response_model=PartnerResponse)
 async def get_partner(
     partner_id: int,
