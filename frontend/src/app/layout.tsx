@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import JsonLd from "@/components/JsonLd";
 import ThemeProvider from "@/components/ThemeProvider";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -70,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" suppressHydrationWarning className={inter.variable}>
       <body className="antialiased min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-gray-200 transition-colors" style={{ fontFamily: "var(--font-inter), system-ui, -apple-system, sans-serif" }}>
         <ThemeProvider>
+          <GoogleAnalytics />
           <JsonLd data={organizationSchema} />
           {children}
         </ThemeProvider>
