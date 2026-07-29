@@ -90,14 +90,14 @@ async def seed():
                 ]),
                 ("Curtidas", "curtidas", [
                     ("Curtidas Instantâneas (Non Drop)", "curtidas-instantaneas",
-                     "Curtidas não-drop, entregues em segundos. 300K/dia.",
-                     1865, 0.0413, 10, 100000, "Instantâneo", 250),
+                                         "Curtidas não-drop, entrega em minutos. Até 100K/dia.",
+                                         8216, 0.0125, 10, 100000, "0-1h", 600),
                     ("Curtidas Brasileiras (30d Refill)", "curtidas-brasileiras-refill",
                      "Curtidas de alta qualidade com 30 dias de garantia.",
                      4265, 0.4038, 10, 20000, "0-1h", 60),
                     ("Curtidas (300K/dia)", "curtidas-300k-dia",
                      "Curtidas em alta velocidade. Ideal para posts virais.",
-                     1865, 0.0413, 10, 100000, "0-5 min", 250),
+                     8216, 0.0125, 10, 100000, "0-5 min", 600),
                 ]),
                 ("Visualizações", "visualizacoes", [
                     ("Visualizações Stories", "visualizacoes-stories",

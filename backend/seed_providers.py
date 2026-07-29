@@ -36,8 +36,8 @@ async def seed_providers():
             1: (8096, 0.7938),   # Seguidores Brasileiros -> BR 10K/day No Refill
             2: (720, 0.2125),    # Seguidores Mundiais -> Mundial
             3: (8095, 0.8125),   # Seguidores BR Feminino -> BR Auto-Refill 30D
-            4: (1865, 0.0413),   # Curtidas Instantâneas -> Likes 10M
-            5: (1865, 0.0413),   # Curtidas 100K/hora -> Likes 10M
+            4: (8216, 0.0125),   # Curtidas Instantâneas -> IG Likes rapido
+            5: (8216, 0.0125),   # Curtidas 300K/dia -> IG Likes rapido
             6: (4265, 0.4038),   # Curtidas Brasileiras -> BR Likes Refill 30D
             7: (2260, 0.0313),   # Vis TikTok -> Ultrafast
             8: (10022, 0.0188),  # Curtidas TikTok -> Likes Refill No

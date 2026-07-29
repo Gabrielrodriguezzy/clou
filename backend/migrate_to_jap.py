@@ -20,8 +20,8 @@ NEW_DATA = {
     1:  (8096, 0.7938, 60),   # Seguidores Brasil (10K/dia)
     2:  (720, 0.2125, 120),   # Seguidores Mundiais (100K/dia)
     3:  (8095, 0.8125, 80),   # Seguidores Brasil Feminino (Auto-Refill 30D)
-    4:  (1865, 0.0413, 250),  # Curtidas Instantâneas
-    5:  (1865, 0.0413, 250),  # Curtidas (300K/dia)
+    4:  (8216, 0.0125, 600),  # Curtidas Instantâneas -> IG Likes rapido
+    5:  (8216, 0.0125, 600),  # Curtidas (300K/dia) -> IG Likes rapido
     6:  (4265, 0.4038, 60),   # Curtidas Brasileiras (30d Refill)
     7:  (2260, 0.0313, 350),  # Vis TikTok Ultrafast
     8:  (10022, 0.0188, 500), # Curtidas TikTok (25K/dia)
