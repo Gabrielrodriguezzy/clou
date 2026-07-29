@@ -25,7 +25,9 @@ const sidebarItems = [
 const adminSidebarItems = [
   { icon: "📊", label: "Admin", href: "/dashboard/admin" },
   { icon: "👥", label: "Usuários", href: "/dashboard/admin/users" },
+  { icon: "📋", label: "Pedidos", href: "/dashboard/admin/orders" },
   { icon: "🏷️", label: "Cupons", href: "/dashboard/admin/coupons" },
+  { icon: "🛠️", label: "Serviços", href: "/dashboard/admin/services" },
   { icon: "🤝", label: "Parceiros", href: "/dashboard/admin/partners" },
 ];
 

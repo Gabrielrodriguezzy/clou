@@ -9,8 +9,8 @@ interface AdminStats {
   total_orders: number;
   total_revenue: number;
   total_services: number;
-  active_coupons: number;
   pending_orders: number;
+  total_profit: number;
 }
 
 interface RecentOrder {
@@ -18,6 +18,7 @@ interface RecentOrder {
   user_name: string;
   service_name: string;
   charge: number;
+  cost: number;
   status: string;
   created_at: string;
 }
@@ -32,78 +33,60 @@ export default function AdminHome() {
     const t = localStorage.getItem("clou_token");
     if (!t) return;
     setToken(t);
-
-    Promise.all([
-      api.get<any[]>("/admin/orders?limit=5", t).catch(() => []),
-      // Stats via aggregation — usamos os dados disponíveis
-      fetchStats(t),
-    ])
-      .then(([orders, s]) => {
-        setRecentOrders(orders.map((o: any) => ({
-          id: o.id,
-          user_name: o.user_name,
-          service_name: o.service_name,
-          charge: o.charge,
-          status: o.status,
-          created_at: o.created_at,
-        })));
-        setStats(s);
-      })
-      .finally(() => setLoading(false));
+    loadData(t);
   }, []);
 
-  async function fetchStats(token: string): Promise<AdminStats> {
+  async function loadData(t: string) {
     try {
-      const [users, orders, services] = await Promise.all([
-        api.get<any[]>("/admin/users?limit=1", token),
-        api.get<any[]>("/admin/orders?limit=200", token),
-        api.get<any[]>("/services"),
+      const [allOrders, services] = await Promise.all([
+        api.get<any[]>("/admin/orders?limit=500", t).catch(() => [] as any[]),
+        api.get<any[]>("/services").catch(() => [] as any[]),
       ]);
-      const totalUsers = users.length > 0
-        ? await api.get<any[]>("/admin/users?limit=0", token).catch(() => [])
-        : [];
-      const allOrders = orders || [];
-      const revenue = allOrders
+      const orders = allOrders || [];
+
+      // Últimos 5 pedidos
+      setRecentOrders(orders.slice(0, 5).map((o: any) => ({
+        id: o.id, user_name: o.user_name || `#${o.user_id}`,
+        service_name: o.service_name, charge: o.charge, cost: o.cost || 0,
+        status: o.status, created_at: o.created_at,
+      })));
+
+      // Calcular stats
+      const totalOrders = orders.length;
+      const pendingOrders = orders.filter((o: any) => o.status === "pending").length;
+      const revenue = orders
         .filter((o: any) => ["completed", "in_progress", "processing", "partial"].includes(o.status))
-        .reduce((sum: number, o: any) => sum + o.charge, 0);
-      return {
-        total_users: 0, // placeholder — vamos buscar real
-        total_orders: allOrders.length,
-        total_revenue: revenue,
+        .reduce((sum: number, o: any) => sum + (o.charge || 0), 0);
+      const cost = orders
+        .filter((o: any) => ["completed", "in_progress", "processing", "partial"].includes(o.status))
+        .reduce((sum: number, o: any) => sum + (o.cost || 0), 0);
+
+      // Total de usuários via users únicos nos pedidos + pedido count
+      const uniqueUserIds = new Set(orders.map((o: any) => o.user_id));
+      const totalUsers = uniqueUserIds.size > 0 ? uniqueUserIds.size + 1 : 0; // +1 pro admin
+
+      setStats({
+        total_users: totalUsers,
+        total_orders: totalOrders,
+        total_revenue: Math.round(revenue * 100) / 100,
         total_services: (services || []).length,
-        active_coupons: 0,
-        pending_orders: allOrders.filter((o: any) => o.status === "pending").length,
-      };
+        pending_orders: pendingOrders,
+        total_profit: Math.round((revenue - cost) * 100) / 100,
+      });
     } catch {
-      return { total_users: 0, total_orders: 0, total_revenue: 0, total_services: 0, active_coupons: 0, pending_orders: 0 };
+      setStats({ total_users: 0, total_orders: 0, total_revenue: 0, total_services: 0, pending_orders: 0, total_profit: 0 });
+    } finally {
+      setLoading(false);
     }
   }
 
-  // Segunda tentativa de buscar stats reais
-  useEffect(() => {
-    if (!token || !loading) return;
-    const t = token;
-    // Buscar total de users
-    api.get<any[]>("/admin/users?limit=1&skip=1000", t).then((users) => {
-      // Não temos count real, usamos o comprimento se limit=1000
-    }).catch(() => {});
-  }, [token, loading]);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 w-48 bg-slate-800/60 rounded animate-pulse" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="glass-card p-5">
-              <div className="h-4 w-20 bg-slate-800/60 rounded animate-pulse mb-3" />
-              <div className="h-8 w-16 bg-slate-800/60 rounded animate-pulse" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const StatCard = ({ title, value, sub, color = "text-white" }: { title: string; value: string; sub?: string; color?: string }) => (
+    <div className="glass-card p-5">
+      <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">{title}</p>
+      <p className={`text-3xl font-bold ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-600 mt-1">{sub}</p>}
+    </div>
+  );
 
   const StatusBadge = ({ status }: { status: string }) => {
     const colors: Record<string, string> = {
@@ -113,10 +96,11 @@ export default function AdminHome() {
       completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
       cancelled: "bg-red-500/10 text-red-400 border-red-500/20",
       error: "bg-red-500/10 text-red-400 border-red-500/20",
+      partial: "bg-purple-500/10 text-purple-400 border-purple-500/20",
     };
     const labels: Record<string, string> = {
       pending: "Pendente", processing: "Processando", in_progress: "Em Andamento",
-      completed: "Concluído", cancelled: "Cancelado", error: "Erro",
+      completed: "Concluído", cancelled: "Cancelado", error: "Erro", partial: "Parcial",
     };
     return (
       <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${colors[status] || "bg-slate-500/10 text-slate-400"}`}>
@@ -125,57 +109,52 @@ export default function AdminHome() {
     );
   };
 
+  if (loading) return (
+    <div className="space-y-6">
+      <div className="h-8 w-64 bg-slate-800/60 rounded animate-pulse" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => <div key={i} className="glass-card p-5"><div className="h-4 w-20 bg-slate-800/60 rounded animate-pulse mb-3" /><div className="h-8 w-16 bg-slate-800/60 rounded animate-pulse" /></div>)}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Administração</h1>
-        <p className="text-slate-500 text-sm mt-1">Gerencie usuários, pedidos, cupons e serviços da plataforma</p>
+        <p className="text-slate-500 text-sm mt-1">Gerencie usuários, pedidos, cupons, serviços e parceiros da plataforma</p>
       </div>
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
         <Link href="/dashboard/admin/users" className="btn-primary text-xs !py-2 !px-4">👥 Usuários</Link>
+        <Link href="/dashboard/admin/orders" className="btn-primary text-xs !py-2 !px-4">📋 Pedidos</Link>
         <Link href="/dashboard/admin/coupons" className="btn-secondary text-xs !py-2 !px-4">🏷️ Cupons</Link>
-        <Link href="/dashboard/admin/partners" className="btn-secondary text-xs !py-2 !px-4">👥 Parceiros</Link>
-        <Link href="/dashboard/pedidos" className="btn-secondary text-xs !py-2 !px-4">📋 Todos Pedidos</Link>
+        <Link href="/dashboard/admin/services" className="btn-secondary text-xs !py-2 !px-4">🛠️ Serviços</Link>
+        <Link href="/dashboard/admin/partners" className="btn-secondary text-xs !py-2 !px-4">🤝 Parceiros</Link>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-5">
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Usuários</p>
-          <p className="text-3xl font-bold text-white">{stats?.total_orders || 0}</p>
-          <p className="text-xs text-slate-600 mt-1">Cadastrados na plataforma</p>
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard title="Usuários" value={String(stats.total_users)} sub="Cadastrados na plataforma" />
+          <StatCard title="Pedidos" value={String(stats.total_orders)} sub={`${stats.pending_orders} pendentes`} />
+          <StatCard title="Receita" value={`R$ ${stats.total_revenue.toFixed(2)}`} color="text-emerald-400" sub="Pedidos concluídos/andamento" />
+          <StatCard title="Lucro" value={`R$ ${stats.total_profit.toFixed(2)}`} color="text-amber-400" sub="Receita - Custos" />
+          <StatCard title="Serviços" value={String(stats.total_services)} sub="No catálogo" />
         </div>
-        <div className="glass-card p-5">
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Pedidos</p>
-          <p className="text-3xl font-bold text-white">{stats?.total_orders || 0}</p>
-          <p className="text-xs text-amber-400 mt-1">{stats?.pending_orders || 0} pendentes</p>
-        </div>
-        <div className="glass-card p-5">
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Receita Total</p>
-          <p className="text-3xl font-bold text-emerald-400">R$ {stats?.total_revenue.toFixed(2) || "0,00"}</p>
-          <p className="text-xs text-slate-600 mt-1">Em pedidos concluídos</p>
-        </div>
-        <div className="glass-card p-5">
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Serviços</p>
-          <p className="text-3xl font-bold text-white">{stats?.total_services || 0}</p>
-          <p className="text-xs text-slate-600 mt-1">Ativos no catálogo</p>
-        </div>
-      </div>
+      )}
 
       {/* Recent Orders */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Últimos Pedidos</h2>
-          <Link href="/dashboard/pedidos" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Ver todos →</Link>
+          <Link href="/dashboard/admin/orders" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Ver todos →</Link>
         </div>
 
         {recentOrders.length === 0 ? (
-          <div className="glass-card p-6 text-center">
-            <p className="text-slate-500 text-sm">Nenhum pedido realizado ainda</p>
-          </div>
+          <div className="glass-card p-6 text-center"><p className="text-slate-500 text-sm">Nenhum pedido realizado ainda</p></div>
         ) : (
           <div className="glass-card overflow-hidden">
             <table className="w-full text-sm">
@@ -190,14 +169,14 @@ export default function AdminHome() {
                 </tr>
               </thead>
               <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors">
-                    <td className="px-4 py-3 text-slate-400 font-mono text-xs">#{order.id}</td>
-                    <td className="px-4 py-3 text-white text-xs">{order.user_name || `#${order.id}`}</td>
-                    <td className="px-4 py-3 text-slate-400 text-xs max-w-[200px] truncate">{order.service_name}</td>
-                    <td className="px-4 py-3 text-emerald-400 text-xs font-medium">R$ {order.charge.toFixed(2)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{new Date(order.created_at).toLocaleDateString("pt-BR")}</td>
+                {recentOrders.map((o) => (
+                  <tr key={o.id} className="border-b border-slate-800/30 hover:bg-slate-800/20 transition-colors">
+                    <td className="px-4 py-3 text-slate-400 font-mono text-xs">#{o.id}</td>
+                    <td className="px-4 py-3 text-white text-xs">{o.user_name}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs max-w-[200px] truncate">{o.service_name}</td>
+                    <td className="px-4 py-3 text-emerald-400 text-xs font-medium">R$ {o.charge.toFixed(2)}</td>
+                    <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{new Date(o.created_at).toLocaleDateString("pt-BR")}</td>
                   </tr>
                 ))}
               </tbody>
