@@ -90,8 +90,8 @@ async def seed():
                 ]),
                 ("Curtidas", "curtidas", [
                     ("Curtidas Instantâneas (Non Drop)", "curtidas-instantaneas",
-                                         "Curtidas não-drop, entrega em minutos. Até 100K/dia.",
-                                         8216, 0.0125, 10, 100000, "0-1h", 600),
+                     "Curtidas não-drop, entrega em minutos. Até 100K/dia.",
+                     8216, 0.0125, 10, 100000, "0-1h", 600),
                     ("Curtidas Brasileiras (30d Refill)", "curtidas-brasileiras-refill",
                      "Curtidas de alta qualidade com 30 dias de garantia.",
                      4265, 0.4038, 10, 20000, "0-1h", 60),
