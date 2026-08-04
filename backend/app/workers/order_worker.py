@@ -44,63 +44,71 @@ class OrderWorker:
             if not orders:
                 return 0
 
-            # Buscar provedor ativo com menor prioridade
-            provider_result = await db.execute(
+            # Buscar TODOS os provedores ativos (ordenados por prioridade)
+            providers_result = await db.execute(
                 select(Provider)
                 .where(Provider.is_active == True)
                 .order_by(Provider.priority)
-                .limit(1)
             )
-            provider = provider_result.scalar_one_or_none()
-            if not provider:
+            providers = providers_result.scalars().all()
+            if not providers:
                 logger.warning("Nenhum provedor ativo configurado")
                 return 0
 
-            client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY))
             processed = 0
 
             for order in orders:
-                try:
-                    # Buscar mapeamento do serviço
-                    ps_result = await db.execute(
-                        select(ProviderService)
-                        .where(
-                            ProviderService.provider_id == provider.id,
-                            ProviderService.service_id == order.service_id,
-                        )
-                    )
-                    ps = ps_result.scalar_one_or_none()
-                    if not ps:
-                        logger.warning(f"Serviço {order.service_id} não mapeado no provedor {provider.id}")
-                        order.status = OrderStatus.ERROR
-                        order.notes = "Serviço não mapeado no provedor"
-                        continue
+                order_processed = False
+                for provider in providers:
+                    if order_processed:
+                        break
+                    try:
+                        client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY), api_url=provider.api_url)
 
-                    # Enviar pedido ao provedor
-                    result = await client.add_order(
-                        service_id=ps.provider_service_id,
-                        link=order.link,
-                        quantity=order.quantity,
-                    )
-
-                    provider_order_id = result.get("order")
-                    if provider_order_id:
-                        order.provider_id = provider.id
-                        order.provider_order_id = str(provider_order_id)
-                        order.status = OrderStatus.PROCESSING
-                        order.cost = round(
-                            ps.provider_price * (order.quantity / 1000), 2
+                        # Buscar mapeamento do serviço para este provedor
+                        ps_result = await db.execute(
+                            select(ProviderService)
+                            .where(
+                                ProviderService.provider_id == provider.id,
+                                ProviderService.service_id == order.service_id,
+                                ProviderService.is_active == True,
+                            )
                         )
-                        logger.info(
-                            f"Pedido #{order.id} enviado ao provedor. "
-                            f"ID provedor: {provider_order_id}"
-                        )
-                        processed += 1
+                        ps = ps_result.scalar_one_or_none()
+                        if not ps:
+                            continue  # tenta próximo provedor
 
-                except Exception as e:
-                    logger.error(f"Erro ao processar pedido #{order.id}: {e}")
+                        # Enviar pedido ao provedor
+                        result = await client.add_order(
+                            service_id=ps.provider_service_id,
+                            link=order.link,
+                            quantity=order.quantity,
+                        )
+
+                        provider_order_id = result.get("order")
+                        if provider_order_id:
+                            order.provider_id = provider.id
+                            order.provider_order_id = str(provider_order_id)
+                            order.status = OrderStatus.PROCESSING
+                            order.cost = round(
+                                ps.provider_price * (order.quantity / 1000), 2
+                            )
+                            logger.info(
+                                f"Pedido #{order.id} enviado ao provedor {provider.name}. "
+                                f"ID provedor: {provider_order_id}"
+                            )
+                            processed += 1
+                            order_processed = True
+
+                    except Exception as e:
+                        logger.warning(
+                            f"Erro ao processar pedido #{order.id} no provedor {provider.name}: {e}"
+                        )
+                        continue  # tenta próximo provedor
+
+                if not order_processed:
                     order.status = OrderStatus.ERROR
-                    order.notes = f"Erro no provedor: {str(e)[:200]}"
+                    order.notes = "Nenhum provedor conseguiu processar o pedido"
 
             await db.commit()
             return processed
@@ -136,7 +144,7 @@ class OrderWorker:
                 if not provider:
                     continue
 
-                client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY))
+                client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY), api_url=provider.api_url)
 
                 # Consultar status em lote
                 order_ids = [int(o.provider_order_id) for o in provider_orders if o.provider_order_id]
@@ -194,7 +202,8 @@ if __name__ == "__main__":
 
 
 async def process_single_order(order_id: int) -> None:
-    """Processa UM pedido específico (disparado na criação)."""
+    """Processa UM pedido específico (disparado na criação).
+    Tenta cada provedor ativo em ordem de prioridade até um funcionar."""
     try:
         engine = create_async_engine(
             settings.DATABASE_URL,
@@ -204,51 +213,56 @@ async def process_single_order(order_id: int) -> None:
             pool_timeout=10,
         )
         factory = async_sessionmaker(engine, class_=AsyncSession)
-        
+
         async with factory() as db:
             result = await db.execute(select(Order).where(Order.id == order_id))
             order = result.scalar_one_or_none()
             if not order or order.status != OrderStatus.PENDING:
                 return
-            
-            provider_result = await db.execute(
-                select(Provider).where(Provider.is_active == True).order_by(Provider.priority).limit(1)
+
+            providers_result = await db.execute(
+                select(Provider).where(Provider.is_active == True).order_by(Provider.priority)
             )
-            provider = provider_result.scalar_one_or_none()
-            if not provider:
+            providers = providers_result.scalars().all()
+            if not providers:
                 return
-            
-            client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY))
-            
-            ps_result = await db.execute(
-                select(ProviderService).where(
-                    ProviderService.provider_id == provider.id,
-                    ProviderService.service_id == order.service_id,
-                )
-            )
-            ps = ps_result.scalar_one_or_none()
-            if not ps:
-                order.status = OrderStatus.ERROR
-                order.notes = "Serviço não mapeado no provedor"
-                await db.commit()
-                return
-            
-            result = await client.add_order(
-                service_id=ps.provider_service_id,
-                link=order.link,
-                quantity=order.quantity,
-            )
-            
-            provider_order_id = result.get("order")
-            if provider_order_id:
-                order.provider_id = provider.id
-                order.provider_order_id = str(provider_order_id)
-                order.status = OrderStatus.PROCESSING
-                order.cost = round(ps.provider_price * (order.quantity / 1000), 2)
-                logger.info(f"Pedido #{order.id} enviado ao provedor. ID: {provider_order_id}")
-            
+
+            for provider in providers:
+                try:
+                    client = SMMPanelClient(api_key=decrypt_secret(provider.api_key, settings.SECRET_KEY), api_url=provider.api_url)
+
+                    ps_result = await db.execute(
+                        select(ProviderService).where(
+                            ProviderService.provider_id == provider.id,
+                            ProviderService.service_id == order.service_id,
+                            ProviderService.is_active == True,
+                        )
+                    )
+                    ps = ps_result.scalar_one_or_none()
+                    if not ps:
+                        continue
+
+                    result = await client.add_order(
+                        service_id=ps.provider_service_id,
+                        link=order.link,
+                        quantity=order.quantity,
+                    )
+
+                    provider_order_id = result.get("order")
+                    if provider_order_id:
+                        order.provider_id = provider.id
+                        order.provider_order_id = str(provider_order_id)
+                        order.status = OrderStatus.PROCESSING
+                        order.cost = round(ps.provider_price * (order.quantity / 1000), 2)
+                        logger.info(f"Pedido #{order.id} enviado ao provedor {provider.name}. ID: {provider_order_id}")
+                        break  # sucesso, não tenta mais provedores
+
+                except Exception as e:
+                    logger.warning(f"Erro ao processar pedido #{order_id} no provedor {provider.name}: {e}")
+                    continue
+
             await db.commit()
-        
+
         await engine.dispose()
     except Exception as e:
         logger.error(f"Erro ao processar pedido #{order_id}: {e}")

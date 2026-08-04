@@ -1,4 +1,4 @@
-"""Cliente para API do SMMPanel.com — com retry e timeout configuráveis."""
+"""Cliente para API de provedores SMM (JAP, Morethanpanel, etc) — com retry e timeout configuráveis."""
 import asyncio
 import httpx
 import logging
@@ -6,7 +6,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-SMMPANEL_API_URL = "https://justanotherpanel.com/api/v2"
+DEFAULT_API_URL = "https://justanotherpanel.com/api/v2"
 
 # Configurações de resiliência
 MAX_RETRIES = 2
@@ -15,10 +15,11 @@ HTTP_TIMEOUT = 60.0
 
 
 class SMMPanelClient:
-    """Cliente para integrar com o provedor JustAnotherPanel (JAP)"""
+    """Cliente para integrar com provedores SMM (API v2 padrão)."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, api_url: Optional[str] = None):
         self.api_key = api_key
+        self.api_url = api_url or DEFAULT_API_URL
 
     async def _post(self, **params) -> dict:
         """Envia requisição POST para a API com retry automático."""
@@ -28,7 +29,7 @@ class SMMPanelClient:
         for attempt in range(1, MAX_RETRIES + 2):  # 1 tentativa + retries
             try:
                 async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-                    resp = await client.post(SMMPANEL_API_URL, data=params)
+                    resp = await client.post(self.api_url, data=params)
                     resp.raise_for_status()
                     return resp.json()
             except httpx.TimeoutException as e:
