@@ -107,6 +107,7 @@ class MercadoPagoPixProvider:
             "description": description[:255],
             "payment_method_id": "pix",
             "payer": {"email": payer_email or "cliente@clou.app"},
+            "external_reference": external_id,
         }
 
         async with httpx.AsyncClient(timeout=30) as client:

@@ -82,10 +82,27 @@ export default function DepositPage() {
           </button>
         </form>
 
+        {deposit?.pix_qr_code && (
+          <div className="glass-card p-5 mb-4 text-center">
+            <p className="text-xs text-slate-500 mb-3 font-medium">Escaneie o QR Code abaixo com seu banco:</p>
+            <img
+              src={`data:image/png;base64,${deposit.pix_qr_code}`}
+              alt="QR Code Pix"
+              className="mx-auto w-48 h-48 object-contain"
+            />
+          </div>
+        )}
+
         {deposit?.pix_qr_text && (
           <div className="glass-card p-5">
-            <p className="text-xs text-slate-500 mb-3 font-medium">Código Pix (copia e cola):</p>
+            <p className="text-xs text-slate-500 mb-3 font-medium">Ou copie o código Pix (copia e cola):</p>
             <pre className="text-xs text-slate-300 bg-slate-950 p-3 rounded-lg break-all whitespace-pre-wrap select-all border border-slate-800/50">{deposit.pix_qr_text}</pre>
+            <button
+              onClick={() => { navigator.clipboard.writeText(deposit.pix_qr_text || ""); }}
+              className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              📋 Copiar código
+            </button>
             <p className="text-xs text-slate-600 mt-3">
               ⏱ Este código expira em 30 minutos. Após o pagamento, o saldo é creditado automaticamente.
             </p>
