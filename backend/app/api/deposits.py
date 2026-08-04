@@ -36,11 +36,14 @@ async def create_deposit(
     if isinstance(pix_provider, MockPixProvider):
         payment = pix_provider.create_payment(amount=data.amount, external_id=external_id)
     else:
-        payment = await pix_provider.create_payment(
-            amount=data.amount,
-            external_id=external_id,
-            payer_email=current_user.email,
-        )
+        try:
+            payment = await pix_provider.create_payment(
+                amount=data.amount,
+                external_id=external_id,
+                payer_email=current_user.email,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Erro no gateway de pagamento: {str(e)[:200]}")
 
     deposit = Deposit(
         user_id=current_user.id,
