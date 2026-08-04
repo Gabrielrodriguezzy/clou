@@ -200,3 +200,13 @@ async def run_worker():
     worker = OrderWorker()
     result = await worker.run_once()
     return {"status": "ok", "result": result}
+
+
+@app.post("/api/admin/seed-smmoficial")
+async def seed_smmoficial():
+    """TEMP: Executa seed de migração para SmmOficial."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+    from seed_smmoficial import seed
+    await seed()
+    return {"status": "ok", "message": "SmmOficial configurado como único provedor"}
