@@ -126,11 +126,13 @@ async def pix_webhook(
 
     pix_provider = get_pix_provider(settings.model_dump())
     
-    # Chamada async para provider real
-    if isinstance(pix_provider, MockPixProvider):
-        result = pix_provider.handle_webhook(data)
-    else:
-        result = await pix_provider.handle_webhook(data)
+    try:
+        if isinstance(pix_provider, MockPixProvider):
+            result = pix_provider.handle_webhook(data)
+        else:
+            result = await pix_provider.handle_webhook(data)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erro no gateway: {str(e)[:200]}")
 
     external_id = result.get("external_id", data.get("external_id", ""))
     status_webhook = result.get("status", "paid")
