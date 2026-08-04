@@ -175,8 +175,19 @@ class MercadoPagoPixProvider:
 
 def get_pix_provider(config: dict) -> MercadoPagoPixProvider:
     """Factory: retorna o provider baseado na config.
-    Se MERCADO_PAGO_ACCESS_TOKEN estiver presente, usa MP mesmo se PIX_PROVIDER=mock."""
+    Se MERCADO_PAGO_ACCESS_TOKEN estiver presente, usa MP.
+    Fallback: tenta carregar de pix_config.json se o token não veio nas env vars."""
     token = config.get("MERCADO_PAGO_ACCESS_TOKEN", "")
+    
+    # Se não veio das env vars, tentar do arquivo de config local
+    if not token or token == "None" or len(token) < 10:
+        import json as _json, os
+        _cfg_path = os.path.join(os.path.dirname(__file__), "pix_config.json")
+        if os.path.exists(_cfg_path):
+            with open(_cfg_path) as _f:
+                _cfg = _json.load(_f)
+            token = _cfg.get("MERCADO_PAGO_ACCESS_TOKEN", token)
+    
     if token and token != "None" and len(token) > 10:
         return MercadoPagoPixProvider(
             access_token=token,
