@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # Webhook secret for Pix
     PIX_WEBHOOK_SECRET: str = ""
 
-    model_config = {"env_file": "../.env", "case_sensitive": True}
+    model_config = {"env_file": "../../.env", "case_sensitive": True, "extra": "ignore"}
 
 
 def _resolve_settings() -> Settings:

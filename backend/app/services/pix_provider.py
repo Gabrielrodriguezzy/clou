@@ -174,12 +174,13 @@ class MercadoPagoPixProvider:
 
 
 def get_pix_provider(config: dict) -> MercadoPagoPixProvider:
-    """Factory: retorna o provider baseado na config."""
-    provider_name = config.get("PIX_PROVIDER", "mock")
-    if provider_name == "mercadopago":
+    """Factory: retorna o provider baseado na config.
+    Se MERCADO_PAGO_ACCESS_TOKEN estiver presente, usa MP mesmo se PIX_PROVIDER=mock."""
+    token = config.get("MERCADO_PAGO_ACCESS_TOKEN", "")
+    if token and token != "None" and len(token) > 10:
         return MercadoPagoPixProvider(
-            access_token=config.get("MERCADO_PAGO_ACCESS_TOKEN", ""),
+            access_token=token,
             webhook_secret=config.get("MERCADO_PAGO_WEBHOOK_SECRET", ""),
-            sandbox=config.get("MERCADO_PAGO_SANDBOX", True),
+            sandbox=config.get("MERCADO_PAGO_SANDBOX", False),
         )
     return MockPixProvider()
