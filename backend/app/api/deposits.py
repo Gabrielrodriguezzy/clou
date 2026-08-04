@@ -125,15 +125,10 @@ async def pix_webhook(
             result = pix_provider.handle_webhook(data)
         else:
             # Direct call to MP API
-            import httpx, os as _os, json as _json
-            # Pegar token do settings ou do pix_config.json
-            mp_token = settings.MERCADO_PAGO_ACCESS_TOKEN
-            if not mp_token or len(mp_token) < 10:
-                _cfg_path = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "core", "pix_config.json")
-                if _os.path.exists(_cfg_path):
-                    with open(_cfg_path) as _f:
-                        _cfg = _json.load(_f)
-                    mp_token = _cfg.get("MERCADO_PAGO_ACCESS_TOKEN", mp_token)
+            import httpx
+            # Pegar token do provider (que tem fallback pro pix_config.json)
+            mp_provider = get_pix_provider(settings.model_dump())
+            mp_token = mp_provider.access_token if hasattr(mp_provider, 'access_token') else ""
             payment_id = data.get("data", {}).get("id")
             if not payment_id:
                 raise HTTPException(status_code=400, detail="payment_id não encontrado")
