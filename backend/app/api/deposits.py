@@ -124,7 +124,23 @@ async def pix_webhook(
         if isinstance(pix_provider, MockPixProvider):
             result = pix_provider.handle_webhook(data)
         else:
-            result = await pix_provider.handle_webhook(data)
+            # Direct call to MP API
+            import httpx
+            payment_id = data.get("data", {}).get("id")
+            if not payment_id:
+                raise HTTPException(status_code=400, detail="payment_id não encontrado")
+            headers_mp = {"Authorization": f"Bearer {settings.MERCADO_PAGO_ACCESS_TOKEN}"}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(f"https://api.mercadopago.com/v1/payments/{payment_id}", headers=headers_mp)
+                resp.raise_for_status()
+                payment = resp.json()
+            pstatus = payment.get("status", "")
+            external_id = payment.get("external_reference", "") or str(payment.get("id", ""))
+            result = {
+                "external_id": external_id,
+                "status": "paid" if pstatus == "approved" else ("failed" if pstatus in ("rejected","cancelled","refunded") else "pending"),
+                "paid_at": payment.get("date_approved"),
+            }
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Gateway: {str(e)[:200]}")
 
