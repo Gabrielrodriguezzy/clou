@@ -1,7 +1,10 @@
-"""Provedor Pix — abstrato com implementação Mock e preparação para Mercado Pago."""
+"""Provedor Pix — abstrato com implementação Mock e Mercado Pago."""
 import uuid
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Protocol, runtime_checkable
+
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -115,7 +118,10 @@ class MercadoPagoPixProvider:
                 headers=headers,
                 json=body,
             )
-            resp.raise_for_status()
+            if resp.status_code != 201 and resp.status_code != 200:
+                error_body = resp.text[:500]
+                logger.error(f"Mercado Pago API error {resp.status_code}: {error_body}")
+                resp.raise_for_status()
             data = resp.json()
 
         transaction_data = data.get("point_of_interaction", {}).get("transaction_data", {})
