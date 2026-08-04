@@ -69,62 +69,117 @@ class MockPixProvider:
 
 class MercadoPagoPixProvider:
     """
-    Esqueleto para integração real com Mercado Pago.
-    Requer credenciais: access_token, webhook_secret, integrator_id.
+    Provedor Pix real via Mercado Pago.
+    Gera QR Code dinâmico e processa webhooks de confirmação.
     """
 
-    def __init__(self, access_token: str, webhook_secret: str, integrator_id: str = ""):
+    API_BASE = "https://api.mercadopago.com"
+
+    def __init__(self, access_token: str, webhook_secret: str = "", sandbox: bool = True):
         self.access_token = access_token
         self.webhook_secret = webhook_secret
-        self.integrator_id = integrator_id
+        self.sandbox = sandbox
 
-    def create_payment(
+    async def create_payment(
         self,
         amount: float,
         external_id: str,
         description: str = "Depósito Clou",
+        payer_email: str = "",
     ) -> dict:
         """
-        Implementação futura:
-        1. POST https://api.mercadopago.com/v1/payments
-           Headers: Authorization: Bearer {access_token}
-           Body: {
-             transaction_amount: amount,
-             description: description,
-             payment_method_id: "pix",
-             payer: { email: email_do_cliente }
-           }
-        2. Extrair: qr_code_base64, qr_code, expiration_date da resposta
+        Cria um pagamento Pix via API do Mercado Pago.
+        Retorna QR code (base64) + copia-e-cola + expiration.
         """
-        raise NotImplementedError(
-            "Mercado Pago ainda não integrado. "
-            "Para implementar: "
-            "1. Criar credenciais no Mercado Pago (access_token, webhook_secret) "
-            "2. Configurar PIX_PROVIDER=mercadopago no .env "
-            "3. Completar este método com httpx.post() para a API do MP"
-        )
+        import httpx
 
-    def handle_webhook(self, data: dict) -> dict:
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "X-Idempotency-Key": external_id,
+        }
+
+        body = {
+            "transaction_amount": amount,
+            "description": description[:255],
+            "payment_method_id": "pix",
+            "payer": {"email": payer_email or "cliente@clou.app"},
+            "date_of_expiration": (
+                datetime.now(timezone.utc) + timedelta(minutes=30)
+            ).isoformat().replace("+00:00", "Z"),
+        }
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{self.API_BASE}/v1/payments",
+                headers=headers,
+                json=body,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        transaction_data = data.get("point_of_interaction", {}).get("transaction_data", {})
+
+        return {
+            "pix_qr_code": transaction_data.get("qr_code_base64", ""),
+            "pix_qr_text": transaction_data.get("qr_code", ""),
+            "expires_at": data.get("date_of_expiration"),
+            "payment_id": data.get("id"),
+            "payment_data": data,
+        }
+
+    async def handle_webhook(self, data: dict) -> dict:
         """
-        Implementação futura:
-        1. Validar assinatura do webhook com webhook_secret
-        2. Extrair external_id e action (payment.updated, payment.created)
-        3. Se action == "payment.updated" e status == "approved":
-             retornar status="paid"
+        Processa notificação do webhook do Mercado Pago.
+        Busca o status real do pagamento na API e retorna.
         """
-        raise NotImplementedError(
-            "Webhook do Mercado Pago ainda não implementado. "
-            "Configurar endpoint /api/deposits/webhook/pix no MP."
-        )
+        import httpx
+
+        # Extrair payment_id da notificação
+        payment_id = data.get("data", {}).get("id")
+        if not payment_id:
+            return {"status": "ignored", "external_id": ""}
+
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{self.API_BASE}/v1/payments/{payment_id}",
+                headers=headers,
+            )
+            resp.raise_for_status()
+            payment = resp.json()
+
+        status = payment.get("status", "")
+        external_id = payment.get("external_reference", "") or str(payment.get("id", ""))
+
+        if status == "approved":
+            return {
+                "external_id": external_id,
+                "status": "paid",
+                "paid_at": payment.get("date_approved"),
+            }
+        elif status in ("rejected", "cancelled", "refunded"):
+            return {
+                "external_id": external_id,
+                "status": "failed",
+                "paid_at": None,
+            }
+        else:
+            return {
+                "external_id": external_id,
+                "status": "pending",
+                "paid_at": None,
+            }
 
 
-def get_pix_provider(config: dict) -> PixProvider:
+def get_pix_provider(config: dict) -> MercadoPagoPixProvider:
     """Factory: retorna o provider baseado na config."""
     provider_name = config.get("PIX_PROVIDER", "mock")
     if provider_name == "mercadopago":
         return MercadoPagoPixProvider(
             access_token=config.get("MERCADO_PAGO_ACCESS_TOKEN", ""),
             webhook_secret=config.get("MERCADO_PAGO_WEBHOOK_SECRET", ""),
-            integrator_id=config.get("MERCADO_PAGO_INTEGRATOR_ID", ""),
+            sandbox=config.get("MERCADO_PAGO_SANDBOX", True),
         )
     return MockPixProvider()

@@ -8,7 +8,7 @@ from app.models.user import User
 from app.models.deposit import Deposit, DepositStatus
 from app.models.transaction import Transaction, TransactionType
 from app.schemas.deposit import DepositCreate, DepositResponse
-from app.services.pix_provider import get_pix_provider
+from app.services.pix_provider import get_pix_provider, MockPixProvider
 from app.core.config import settings
 from datetime import datetime, timezone
 import uuid
@@ -31,10 +31,16 @@ async def create_deposit(
     # Usar PixProvider (mock ou mercadopago conforme config)
     external_id = f"clou_{uuid.uuid4().hex[:16]}"
     pix_provider = get_pix_provider(settings.model_dump())
-    payment = pix_provider.create_payment(
-        amount=data.amount,
-        external_id=external_id,
-    )
+    
+    # Chamada async para provider real
+    if isinstance(pix_provider, MockPixProvider):
+        payment = pix_provider.create_payment(amount=data.amount, external_id=external_id)
+    else:
+        payment = await pix_provider.create_payment(
+            amount=data.amount,
+            external_id=external_id,
+            payer_email=current_user.email,
+        )
 
     deposit = Deposit(
         user_id=current_user.id,
@@ -46,6 +52,7 @@ async def create_deposit(
         external_id=external_id,
         pix_qr_text=payment.get("pix_qr_text", ""),
         pix_qr_code=payment.get("pix_qr_code", ""),
+        payment_data=payment.get("payment_data"),
         expires_at=payment.get("expires_at"),
     )
     db.add(deposit)
@@ -107,7 +114,12 @@ async def pix_webhook(
             raise HTTPException(status_code=403, detail="Assinatura inválida")
 
     pix_provider = get_pix_provider(settings.model_dump())
-    result = pix_provider.handle_webhook(data)
+    
+    # Chamada async para provider real
+    if isinstance(pix_provider, MockPixProvider):
+        result = pix_provider.handle_webhook(data)
+    else:
+        result = await pix_provider.handle_webhook(data)
 
     external_id = result.get("external_id", data.get("external_id", ""))
     status_webhook = result.get("status", "paid")
