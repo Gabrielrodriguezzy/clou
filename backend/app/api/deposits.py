@@ -22,47 +22,49 @@ async def create_deposit(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if data.amount < 1.5:
-        raise HTTPException(status_code=400, detail="Valor mínimo de depósito é R$ 1,50")
+    try:
+        if data.amount < 1.5:
+            raise HTTPException(status_code=400, detail="Valor mínimo de depósito é R$ 1,50")
 
-    fee = round(data.amount * 0.01, 2)  # 1% de taxa
-    net_amount = round(data.amount - fee, 2)
+        fee = round(data.amount * 0.01, 2)
+        net_amount = round(data.amount - fee, 2)
 
-    # Usar PixProvider (mock ou mercadopago conforme config)
-    external_id = f"clou_{uuid.uuid4().hex[:16]}"
-    pix_provider = get_pix_provider(settings.model_dump())
-    
-    # Chamada async para provider real
-    if isinstance(pix_provider, MockPixProvider):
-        payment = pix_provider.create_payment(amount=data.amount, external_id=external_id)
-    else:
-        try:
-            payment = await pix_provider.create_payment(
-                amount=data.amount,
-                external_id=external_id,
-                payer_email=current_user.email,
-            )
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Erro no gateway de pagamento: {str(e)[:200]}")
+        external_id = f"clou_{uuid.uuid4().hex[:16]}"
+        pix_provider = get_pix_provider(settings.model_dump())
 
-    deposit = Deposit(
-        user_id=current_user.id,
-        amount=data.amount,
-        fee=fee,
-        net_amount=net_amount,
-        payment_method="pix",
-        status=DepositStatus.PENDING,
-        external_id=external_id,
-        pix_qr_text=payment.get("pix_qr_text", ""),
-        pix_qr_code=payment.get("pix_qr_code", ""),
-        payment_data=payment.get("payment_data"),
-        expires_at=payment.get("expires_at"),
-    )
-    db.add(deposit)
-    await db.flush()
-    await db.refresh(deposit)
+        if isinstance(pix_provider, MockPixProvider):
+            payment = pix_provider.create_payment(amount=data.amount, external_id=external_id)
+        else:
+            try:
+                payment = await pix_provider.create_payment(
+                    amount=data.amount,
+                    external_id=external_id,
+                    payer_email=current_user.email,
+                )
+            except Exception as e:
+                raise HTTPException(status_code=502, detail=f"Gateway: {str(e)[:200]}")
 
-    return deposit
+        deposit = Deposit(
+            user_id=current_user.id,
+            amount=data.amount,
+            fee=fee,
+            net_amount=net_amount,
+            payment_method="pix",
+            status=DepositStatus.PENDING,
+            external_id=external_id,
+            pix_qr_text=payment.get("pix_qr_text", ""),
+            pix_qr_code=payment.get("pix_qr_code", ""),
+            payment_data=payment.get("payment_data"),
+            expires_at=payment.get("expires_at"),
+        )
+        db.add(deposit)
+        await db.flush()
+        await db.refresh(deposit)
+        return deposit
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)[:200]}")
 
 
 @router.get("", response_model=list[DepositResponse])
