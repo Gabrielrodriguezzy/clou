@@ -182,7 +182,7 @@ def get_pix_provider(config: dict) -> MercadoPagoPixProvider:
     # Se não veio das env vars, tentar do arquivo de config local
     if not token or token == "None" or len(token) < 10:
         import json as _json, os
-        _cfg_path = os.path.join(os.path.dirname(__file__), "pix_config.json")
+        _cfg_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "pix_config.json")
         if os.path.exists(_cfg_path):
             with open(_cfg_path) as _f:
                 _cfg = _json.load(_f)
