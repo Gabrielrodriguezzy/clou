@@ -7,42 +7,38 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.database import async_session_factory, init_db
+from app.models.service import Service, ServiceStatus
 from app.models.provider import Provider
 from app.models.provider_service import ProviderService
-from app.models.service import Service
 from app.models.order import OrderStatus
 from sqlalchemy import select, delete, update
 
 API_URL = "https://smmoficial.com/api/v2"
 API_KEY = "ce9e9c57a3a90c0c9808864e4963763a"
 
-# Mapeamento: service_id -> (smmoficial_id, price_brl_1k, nome_servico_provedor)
+# Mapeamento: service_id -> (smmoficial_id, price_brl_1k, nome_servico, margem_pct, preco_venda)
 MAPPING = {
     # ── Instagram ──
-    1: (1048, 3.00, "Seguidores Brasileiros R30"),       # Seg BR 10K/dia
-    2: (301,  2.98, "Seguidores BR e mix R60"),          # Seg BR Feminino
-    3: (1048, 3.00, "Seguidores Brasileiros R30"),       # Seg BR 20K/dia
-    4: (301,  2.98, "Seguidores BR e mix R60"),          # Seg Mundiais
-    5: (1002, 0.30, "Curtidas Permanentes S1"),          # Curtidas Instantâneas
-    6: (1002, 0.30, "Curtidas Permanentes S1"),          # Curtidas BR 30d
-    7: (1002, 0.30, "Curtidas Permanentes S1"),          # Curtidas 300K/dia
-    8: (996,  0.06, "Visualizações REELS S1"),           # Visualizações Reels (sub para Stories)
-    9: (996,  0.06, "Visualizações REELS S1"),           # Visualizações Reels
+    1: (1048, 3.00, "Seguidores Brasileiros R30",       80,  round(3.00*1.8, 2)),
+    2: (301,  2.98, "Seguidores BR e mix R60",          80,  round(2.98*1.8, 2)),
+    3: (1048, 3.00, "Seguidores Brasileiros R30",       80,  round(3.00*1.8, 2)),
+    4: (301,  2.98, "Seguidores BR e mix R60",          80,  round(2.98*1.8, 2)),
+    5: (1002, 0.30, "Curtidas Permanentes S1",          100, round(0.30*2, 2)),
+    6: (1002, 0.30, "Curtidas Permanentes S1",          100, round(0.30*2, 2)),
+    7: (1002, 0.30, "Curtidas Permanentes S1",          100, round(0.30*2, 2)),
+    8: (996,  0.06, "Visualizações REELS S1",           100, round(0.06*2, 2)),  # Reels serve pra Stories também
+    9: (996,  0.06, "Visualizações REELS S1",           100, round(0.06*2, 2)),
 
     # ── TikTok ──
-    10: (1028, 2.92, "VIEWS TIKTOK 01"),                 # Vis TikTok Ultrafast
-    11: (975,  1.13, "TikTok Curtidas Mistas Reais R30"),# Curtidas TikTok 30d
-    12: (975,  1.13, "TikTok Curtidas Mistas Reais R30"),# Curtidas TikTok 25K/dia
-    13: (913, 18.93, "Seguidores TikTok BR R30"),         # Seg TikTok 30d
-    14: (913, 18.93, "Seguidores TikTok BR R30"),         # Seg TikTok HQ
-
-    # ── YouTube ── NÃO TEM suporte real
-    # ── Telegram ── NÃO TEM suporte real
+    10: (1028, 2.92, "VIEWS TIKTOK 01",                 50,  round(2.92*1.5, 2)),
+    11: (975,  1.13, "TikTok Curtidas Mistas Reais R30", 50,  round(1.13*1.5, 2)),
+    12: (975,  1.13, "TikTok Curtidas Mistas Reais R30", 50,  round(1.13*1.5, 2)),
+    13: (913, 18.93, "Seguidores TikTok BR R30",         50,  round(18.93*1.5, 2)),
+    14: (913, 18.93, "Seguidores TikTok BR R30",         50,  round(18.93*1.5, 2)),
 }
 
-# Serviços SEM mapping na SmmOficial (serão desativados)
-SERVICOS_SEM_SUPORTE = [15, 16, 17, 18, 19, 20, 21,  # YouTube + Telegram
-                        8]  # Stories (não tem na SmmOficial)
+# Serviços SEM suporte na SmmOficial
+SERVICOS_SEM_SUPORTE = [15, 16, 17, 18, 19, 20, 21]
 
 
 async def seed():
@@ -82,9 +78,9 @@ async def seed():
             prov.priority = 1
             print(f"ℹ️ SmmOficial atualizado (id={prov.id})")
 
-        # 4. ADICIONAR mappings
+        # 4. ADICIONAR mappings E ATUALIZAR PREÇOS
         added = 0
-        for svc_id, (smm_id, price, nome_svc) in MAPPING.items():
+        for svc_id, (smm_id, price, nome_svc, margem, preco_venda) in MAPPING.items():
             ps = ProviderService(
                 provider_id=prov.id,
                 service_id=svc_id,
@@ -93,14 +89,22 @@ async def seed():
             )
             db.add(ps)
             added += 1
-        print(f"✅ {added} serviços mapeados para SmmOficial")
+
+            # Atualizar preço de venda do serviço
+            svc = await db.execute(select(Service).where(Service.id == svc_id))
+            s = svc.scalar_one_or_none()
+            if s:
+                s.price = preco_venda
+                print(f"  ✅ Serviço {svc_id}: R${preco_venda}/1K (custo R${price}, margem {margem}%)")
+
+        print(f"\n✅ {added} serviços mapeados para SmmOficial")
 
         # 5. DESATIVAR serviços sem suporte
         for svc_id in SERVICOS_SEM_SUPORTE:
             r = await db.execute(select(Service).where(Service.id == svc_id))
             s = r.scalar_one_or_none()
             if s:
-                s.status = "inactive"
+                s.status = ServiceStatus.INACTIVE
                 print(f"⏹️  Serviço {svc_id} ({s.name[:30]}) desativado (sem provedor)")
 
         await db.commit()
