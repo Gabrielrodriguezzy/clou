@@ -136,10 +136,12 @@ async def pix_webhook(
                 payment = resp.json()
             pstatus = payment.get("status", "")
             external_id = payment.get("external_reference", "") or str(payment.get("id", ""))
+            paid_at_raw = payment.get("date_approved")
+            paid_at = datetime.fromisoformat(paid_at_raw) if paid_at_raw else None
             result = {
                 "external_id": external_id,
                 "status": "paid" if pstatus == "approved" else ("failed" if pstatus in ("rejected","cancelled","refunded") else "pending"),
-                "paid_at": payment.get("date_approved"),
+                "paid_at": paid_at,
             }
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Gateway: {str(e)[:200]}")
