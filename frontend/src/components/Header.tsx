@@ -28,6 +28,9 @@ export default function Header() {
             <Link href="/" className="text-sm text-slate-400 hover:text-white transition-colors">
               Serviços
             </Link>
+            <Link href="/instagram" className="text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent hover:from-purple-300 hover:to-pink-300 transition-all duration-200">
+              Instagram
+            </Link>
             <Link href="/#como-funciona" className="text-sm text-slate-400 hover:text-white transition-colors">
               Como Funciona
             </Link>
@@ -75,6 +78,7 @@ export default function Header() {
         {mobileOpen && (
           <div className="md:hidden pb-4 space-y-2 animate-fade-in-up">
             <Link href="/" className="block text-sm text-slate-400 hover:text-white py-2" onClick={() => setMobileOpen(false)}>Serviços</Link>
+            <Link href="/instagram" className="block text-sm bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent py-2" onClick={() => setMobileOpen(false)}>Instagram</Link>
             <Link href="/#como-funciona" className="block text-sm text-slate-400 hover:text-white py-2" onClick={() => setMobileOpen(false)}>Como Funciona</Link>
             <Link href="/#precos" className="block text-sm text-slate-400 hover:text-white py-2" onClick={() => setMobileOpen(false)}>Preços</Link>
             <div className="pt-2 border-t border-slate-800 flex gap-3">
