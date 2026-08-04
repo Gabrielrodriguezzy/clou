@@ -100,15 +100,21 @@ async def get_deposit(
 @router.post("/webhook/pix")
 async def pix_webhook(
     request: Request,
-    data: dict,
     db: AsyncSession = Depends(get_db),
 ):
+    # Ler o corpo uma vez só
+    body = await request.body()
+    try:
+        import json as _json
+        data = _json.loads(body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON inválido")
+
     # Verificar assinatura do webhook (se configurada)
     webhook_secret = settings.PIX_WEBHOOK_SECRET
     if webhook_secret:
         signature = request.headers.get("X-Signature", "")
         import hashlib, hmac
-        body = await request.body()
         expected = hmac.new(webhook_secret.encode(), body, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(f"sha256={expected}", signature):
             AuditLogger.suspicious_request(
