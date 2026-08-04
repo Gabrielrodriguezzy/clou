@@ -107,9 +107,6 @@ class MercadoPagoPixProvider:
             "description": description[:255],
             "payment_method_id": "pix",
             "payer": {"email": payer_email or "cliente@clou.app"},
-            "date_of_expiration": (
-                datetime.now(timezone.utc) + timedelta(minutes=30)
-            ).isoformat().replace("+00:00", "Z"),
         }
 
         async with httpx.AsyncClient(timeout=30) as client:
