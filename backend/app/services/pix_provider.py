@@ -123,10 +123,14 @@ class MercadoPagoPixProvider:
 
         transaction_data = data.get("point_of_interaction", {}).get("transaction_data", {})
 
+        from datetime import datetime as _dt
+        exp_str = data.get("date_of_expiration")
+        expires_at = _dt.fromisoformat(exp_str) if exp_str else None
+
         return {
             "pix_qr_code": transaction_data.get("qr_code_base64", ""),
             "pix_qr_text": transaction_data.get("qr_code", ""),
-            "expires_at": data.get("date_of_expiration"),
+            "expires_at": expires_at,
             "payment_id": data.get("id"),
             "payment_data": data,
         }
