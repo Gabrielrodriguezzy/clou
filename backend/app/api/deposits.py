@@ -126,47 +126,52 @@ async def pix_webhook(
         else:
             result = await pix_provider.handle_webhook(data)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Erro no gateway: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Gateway: {str(e)[:200]}")
 
     external_id = result.get("external_id", data.get("external_id", ""))
-    status_webhook = result.get("status", "paid")
 
     if not external_id:
         raise HTTPException(status_code=400, detail="external_id não fornecido")
 
-    deposit_result = await db.execute(
-        select(Deposit).where(Deposit.external_id == external_id)
-    )
-    deposit = deposit_result.scalar_one_or_none()
-    if not deposit:
-        raise HTTPException(status_code=404, detail="Depósito não encontrado")
+    try:
+        deposit_result = await db.execute(
+            select(Deposit).where(Deposit.external_id == external_id)
+        )
+        deposit = deposit_result.scalar_one_or_none()
+        if not deposit:
+            raise HTTPException(status_code=404, detail="Depósito não encontrado")
 
-    if status_webhook == "paid" and deposit.status == DepositStatus.PENDING:
-        deposit.status = DepositStatus.PAID
-        deposit.paid_at = result.get("paid_at")
-        if not deposit.paid_at:
-            deposit.paid_at = datetime.now(timezone.utc)
-        await db.flush()
+        if result.get("status", "paid") == "paid" and deposit.status == DepositStatus.PENDING:
+            deposit.status = DepositStatus.PAID
+            deposit.paid_at = result.get("paid_at")
+            if not deposit.paid_at:
+                deposit.paid_at = datetime.now(timezone.utc)
+            await db.flush()
 
-        # Creditar saldo
-        user_result = await db.execute(select(User).where(User.id == deposit.user_id))
-        user = user_result.scalar_one_or_none()
-        if user:
-            balance_before = user.balance
-            user.balance = round(user.balance + deposit.net_amount, 2)
+            user_result = await db.execute(select(User).where(User.id == deposit.user_id))
+            user = user_result.scalar_one_or_none()
+            if user:
+                balance_before = user.balance
+                user.balance = round(user.balance + deposit.net_amount, 2)
 
-            tx = Transaction(
-                user_id=user.id,
-                type=TransactionType.DEPOSIT,
-                amount=deposit.net_amount,
-                balance_before=balance_before,
-                balance_after=user.balance,
-                description=f"Depósito via Pix - R$ {deposit.amount:.2f}",
-                reference_type="deposit",
-                reference_id=deposit.id,
-            )
-            db.add(tx)
+                tx = Transaction(
+                    user_id=user.id,
+                    type=TransactionType.DEPOSIT,
+                    amount=deposit.net_amount,
+                    balance_before=balance_before,
+                    balance_after=user.balance,
+                    description=f"Depósito via Pix - R$ {deposit.amount:.2f}",
+                    reference_type="deposit",
+                    reference_id=deposit.id,
+                )
+                db.add(tx)
 
-        deposit.status = DepositStatus.COMPLETED
+            deposit.status = DepositStatus.COMPLETED
+
+        await db.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao creditar: {str(e)[:200]}")
 
     return {"status": "ok"}
