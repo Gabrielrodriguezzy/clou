@@ -27,6 +27,10 @@ interface Revendedor {
   paid_out: number;
   balance_due: number;
   weeks: WeekData[];
+  tier_name: string;
+  tier_rate: number;
+  next_tier_name: string | null;
+  sales_to_next: number | null;
 }
 
 interface PayoutRecord {
@@ -42,6 +46,39 @@ interface PayoutRecord {
 
 function formatBRL(val: number): string {
   return `R$ ${val.toFixed(2).replace(".", ",")}`;
+}
+
+// ─── Tier Helpers ────────────────────────────────────────────────────
+
+const TIER_COLORS: Record<string, string> = {
+  Bronze: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  Prata: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  Ouro: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  Diamante: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+};
+
+const TIER_EMOJIS: Record<string, string> = {
+  Bronze: "🥉",
+  Prata: "🥈",
+  Ouro: "🥇",
+  Diamante: "💎",
+};
+
+const TIER_ORDER: Record<string, number> = {
+  Bronze: 0,
+  Prata: 1,
+  Ouro: 2,
+  Diamante: 3,
+};
+
+function getMaiorTier(revendedores: Revendedor[]): string {
+  let best = "Bronze";
+  for (const r of revendedores) {
+    if ((TIER_ORDER[r.tier_name] ?? 0) > (TIER_ORDER[best] ?? 0)) {
+      best = r.tier_name;
+    }
+  }
+  return best;
 }
 
 // ─── Modais ─────────────────────────────────────────────────────────
@@ -351,7 +388,7 @@ export default function RevendedoresPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
         <div className="glass-card p-4 text-center">
           <p className="text-2xl font-bold text-white">{data.length}</p>
           <p className="text-xs text-slate-500 mt-1">Revendedores</p>
@@ -367,6 +404,12 @@ export default function RevendedoresPage() {
         <div className="glass-card p-4 text-center">
           <p className="text-2xl font-bold text-cyan-400">{formatBRL(totalComissaoPagar)}</p>
           <p className="text-xs text-slate-500 mt-1">Comissão Pendente</p>
+        </div>
+        <div className="glass-card p-4 text-center">
+          <p className={`text-2xl font-bold ${TIER_COLORS[getMaiorTier(data)]?.split(" ")[1] ?? "text-slate-300"}`}>
+            {TIER_EMOJIS[getMaiorTier(data)] ?? ""} {getMaiorTier(data)}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">Maior Tier</p>
         </div>
       </div>
 
@@ -409,7 +452,11 @@ export default function RevendedoresPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{rev.partner_name}</p>
                   <p className="text-xs text-slate-500 truncate mt-0.5">
-                    Código: <span className="text-emerald-400 font-mono">{rev.ref_code}</span> • {rev.commission_rate}%
+                    Código: <span className="text-emerald-400 font-mono">{rev.ref_code}</span>{" "}
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${TIER_COLORS[rev.tier_name] ?? "bg-slate-500/20 text-slate-300 border-slate-500/30"}`}>
+                      {TIER_EMOJIS[rev.tier_name] ?? ""} {rev.tier_name}
+                    </span>{" "}
+                    • {rev.commission_rate}%
                   </p>
                 </div>
                 <div className="flex items-center gap-5 text-right flex-shrink-0">
@@ -472,6 +519,23 @@ export default function RevendedoresPage() {
                       <p className="text-xs text-slate-500">A Pagar</p>
                       <p className={`text-lg font-bold ${rev.balance_due > 0 ? "text-amber-400" : "text-slate-500"}`}>{formatBRL(rev.balance_due)}</p>
                     </div>
+                  </div>
+
+                  {/* Tier Card */}
+                  <div className="glass-card p-3 text-center">
+                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1 font-medium">🏆 Nível</p>
+                    <p className={`text-lg font-bold ${TIER_COLORS[rev.tier_name]?.split(" ")[1] ?? "text-slate-300"}`}>
+                      {TIER_EMOJIS[rev.tier_name] ?? ""} {rev.tier_name} · {rev.tier_rate}%
+                    </p>
+                    {rev.next_tier_name && rev.sales_to_next !== null && rev.sales_to_next > 0 ? (
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Faltam <span className="text-amber-400 font-medium">{formatBRL(rev.sales_to_next)}</span> em vendas para {TIER_EMOJIS[rev.next_tier_name] ?? ""} {rev.next_tier_name}
+                      </p>
+                    ) : rev.next_tier_name ? (
+                      <p className="text-[11px] text-emerald-400 mt-1">✅ Pronto para {rev.next_tier_name}!</p>
+                    ) : (
+                      <p className="text-[11px] text-slate-600 mt-1">🎯 Tier máximo atingido</p>
+                    )}
                   </div>
 
                   {/* Weekly Table */}

@@ -14,6 +14,7 @@ from app.models.coupon import Coupon
 from app.models.referral import Referral, ReferralStatus
 from app.models.partner_payout import PartnerPayout
 from app.models.partner import Partner
+from app.services.tiers import get_tier, next_tier, sales_to_next_tier
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -620,6 +621,10 @@ class WeeklyPartnerStats(BaseModel):
     commission_due: float
     paid_out: float
     balance_due: float
+    tier_name: str = ""
+    tier_rate: float = 0.0
+    next_tier_name: str | None = None
+    sales_to_next: float | None = None
     weeks: list[dict]
 
 
@@ -801,6 +806,10 @@ async def get_partners_weekly_stats(
                 "commission": round(w["total_spent"] * commission_rate / 100, 2),
             })
 
+        # Calcular tier
+        partner_tier = get_tier(total_spent)
+        partner_next = next_tier(total_spent)
+
         result.append(WeeklyPartnerStats(
             partner_id=user_id,
             partner_name=partner.name,
@@ -813,6 +822,10 @@ async def get_partners_weekly_stats(
             commission_due=commission_due,
             paid_out=paid_out,
             balance_due=balance_due,
+            tier_name=partner_tier.name,
+            tier_rate=partner_tier.rate,
+            next_tier_name=partner_next.name if partner_next else None,
+            sales_to_next=sales_to_next_tier(total_spent) if partner_next else None,
             weeks=weeks_data,
         ))
 

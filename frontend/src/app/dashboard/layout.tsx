@@ -20,6 +20,7 @@ const sidebarItems = [
   { icon: "📱", label: "Meus Perfis", href: "/dashboard/perfis" },
   { icon: "💳", label: "Depositar", href: "/dashboard/deposit" },
   { icon: "🤝", label: "Indicar e Ganhar", href: "/dashboard/indicar" },
+  { icon: "💼", label: "Revenda", href: "/dashboard/revenda" },
   { icon: "⚙️", label: "Configurações", href: "/dashboard/config" },
 ];
 

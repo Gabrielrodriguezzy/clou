@@ -18,6 +18,10 @@ interface PartnerReport {
   balance_due: number;
   last_activity: string | null;
   status: "active" | "ready" | "paid" | "inactive";
+  tier_name: string;
+  tier_rate: number;
+  next_tier_name: string | null;
+  sales_to_next: number | null;
 }
 
 interface PayoutRecord {
@@ -43,6 +47,20 @@ const STATUS_COLOR: Record<string, string> = {
   ready: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   paid: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   inactive: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+};
+
+const TIER_LABEL: Record<string, string> = {
+  Bronze: "🥉 Bronze",
+  Prata: "🥈 Prata",
+  Ouro: "🥇 Ouro",
+  Diamante: "💎 Diamante",
+};
+
+const TIER_COLOR: Record<string, string> = {
+  Bronze: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+  Prata: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  Ouro: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  Diamante: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
 };
 
 function formatBRL(val: number): string {
@@ -166,6 +184,12 @@ export default function AdminPartnersPage() {
     totalCommission: partners.reduce((s, p) => s + p.commission_5pct, 0),
     totalPaid: partners.reduce((s, p) => s + p.paid_out, 0),
     totalDue: partners.reduce((s, p) => s + p.balance_due, 0),
+    tiers: {
+      Bronze: partners.filter((p) => p.tier_name === "Bronze").length,
+      Prata: partners.filter((p) => p.tier_name === "Prata").length,
+      Ouro: partners.filter((p) => p.tier_name === "Ouro").length,
+      Diamante: partners.filter((p) => p.tier_name === "Diamante").length,
+    },
   };
 
   // ─── Render ────────────────────────────────────────────────────────
@@ -213,7 +237,7 @@ export default function AdminPartnersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
         <div className="glass-card p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Parceiros</p>
           <p className="text-2xl font-bold text-white">{totals.partners}</p>
@@ -229,6 +253,25 @@ export default function AdminPartnersPage() {
         <div className="glass-card p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">A Pagar</p>
           <p className="text-2xl font-bold text-amber-400">{formatBRL(totals.totalDue)}</p>
+        </div>
+      </div>
+
+      {/* Tier Stats */}
+      <div className="glass-card p-3 mb-8">
+        <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium mb-2">Distribuição por Nível</p>
+        <div className="flex flex-wrap gap-3">
+          <span className="text-xs text-slate-400">
+            🥉 Bronze: <strong className="text-white">{totals.tiers.Bronze}</strong>
+          </span>
+          <span className="text-xs text-slate-400">
+            🥈 Prata: <strong className="text-white">{totals.tiers.Prata}</strong>
+          </span>
+          <span className="text-xs text-slate-400">
+            🥇 Ouro: <strong className="text-white">{totals.tiers.Ouro}</strong>
+          </span>
+          <span className="text-xs text-slate-400">
+            💎 Diamante: <strong className="text-white">{totals.tiers.Diamante}</strong>
+          </span>
         </div>
       </div>
 
@@ -313,6 +356,7 @@ export default function AdminPartnersPage() {
                   <thead>
                     <tr className="border-b border-slate-800/50">
                       <th className="text-left px-4 py-3 text-xs text-slate-500 font-medium">Parceiro</th>
+                      <th className="text-center px-4 py-3 text-xs text-slate-500 font-medium">Nível</th>
                       <th className="text-center px-4 py-3 text-xs text-slate-500 font-medium">Indicados</th>
                       <th className="text-right px-4 py-3 text-xs text-slate-500 font-medium">Total Gasto</th>
                       <th className="text-right px-4 py-3 text-xs text-slate-500 font-medium">Comissão (5%)</th>
@@ -338,6 +382,15 @@ export default function AdminPartnersPage() {
                               {p.ref_code}
                             </code>
                           </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full border font-medium inline-block whitespace-nowrap ${
+                              TIER_COLOR[p.tier_name] || "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                            }`}
+                          >
+                            {TIER_LABEL[p.tier_name] || p.tier_name}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-center text-white text-sm font-bold">{p.referred_count}</td>
                         <td className="px-4 py-3 text-right text-slate-300 text-xs">{formatBRL(p.total_spent)}</td>
@@ -399,6 +452,18 @@ export default function AdminPartnersPage() {
             <div className="space-y-4">
               {/* Info do parceiro */}
               <div className="glass-card p-3 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Parceiro</span>
+                  <span className="text-white font-medium">{payModal.partner.partner_name}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Nível</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium inline-block ${
+                    TIER_COLOR[payModal.partner.tier_name] || "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                  }`}>
+                    {TIER_LABEL[payModal.partner.tier_name] || payModal.partner.tier_name}
+                  </span>
+                </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Comissão acumulada</span>
                   <span className="text-emerald-400 font-medium">
@@ -481,6 +546,32 @@ export default function AdminPartnersPage() {
               <input readOnly value={`https://cloustore.online/register?ref=${detailPartner.ref_code}`}
                 className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-emerald-400 text-xs font-mono"
                 onClick={(e) => (e.target as HTMLInputElement).select()} />
+
+              {/* Nível de Comissão */}
+              <div className="border-t border-slate-800/50 pt-3">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium mb-2">Nível de Comissão</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className={`text-xs px-2.5 py-1 rounded-full border font-medium inline-block ${
+                      TIER_COLOR[detailPartner.tier_name] || "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                    }`}
+                  >
+                    {TIER_LABEL[detailPartner.tier_name] || detailPartner.tier_name}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {detailPartner.tier_rate}% de comissão
+                  </span>
+                </div>
+                {detailPartner.next_tier_name && detailPartner.sales_to_next !== null && detailPartner.sales_to_next > 0 && (
+                  <div className="bg-slate-800/30 rounded-lg p-3">
+                    <p className="text-xs text-slate-400">
+                      Faltam <strong className="text-amber-400">{formatBRL(detailPartner.sales_to_next)}</strong> em vendas
+                      para atingir <strong className="text-white">{detailPartner.next_tier_name}</strong>
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="border-t border-slate-800/50 pt-3 grid grid-cols-2 gap-3">
                 <div className="glass-card p-3 text-center">
                   <p className="text-xs text-slate-500">Indicados</p>

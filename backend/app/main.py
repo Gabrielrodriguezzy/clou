@@ -11,7 +11,7 @@ import asyncio
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.security_ext import rate_limiter, AuditLogger
-from app.api import auth, services, orders, deposits, admin, coupons, referrals
+from app.api import auth, services, orders, deposits, admin, coupons, referrals, partners
 from app.workers.order_worker import OrderWorker
 
 logger = logging.getLogger(__name__)
@@ -167,6 +167,7 @@ app.include_router(deposits.router)
 app.include_router(coupons.router)
 app.include_router(admin.router)
 app.include_router(referrals.router)
+app.include_router(partners.router)
 
 # ─── Páginas estáticas ────────────────────────────────────────────────
 TEMPLATES_DIR = Path(__file__).parent / "templates"

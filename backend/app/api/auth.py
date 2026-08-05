@@ -57,11 +57,20 @@ async def register(request: Request, data: UserRegister, db: AsyncSession = Depe
         ref = data.ref_code.strip().upper()
         # 1. Tentar como código de parceiro (custom, ex: "GRUPOJOÃO")
         partner_result = await db.execute(
-            select(Partner).where(Partner.ref_code == ref, Partner.is_active == True)
+            select(Partner).where(Partner.ref_code == ref)
         )
         partner = partner_result.scalar_one_or_none()
-        if partner and partner.user_id and partner.user_id != user.id:
-            referrer_id = partner.user_id
+        if partner:
+            # Linkar parceiro ao usuário (se ainda não linkado)
+            if not partner.user_id:
+                partner.user_id = user.id
+            if partner.user_id and partner.user_id != user.id:
+                referrer_id = partner.user_id
+            # Se parceiro estiver pendente, criar referral mesmo assim
+            # (o parceiro só não pode ver o dashboard até ser ativado)
+            if not partner.is_active and not referrer_id:
+                partner.is_active = True  # ativa automaticamente no primeiro uso
+                referrer_id = partner.user_id
         else:
             # 2. Fallback: base64 do user_id (padrão)
             try:
