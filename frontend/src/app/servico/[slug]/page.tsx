@@ -35,9 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const service = await getService(params.slug);
   if (!service) return { title: "Serviço não encontrado — Clou" };
 
-  const price = service.price < 1
-    ? `R$ ${(service.price * 1000).toFixed(2).replace(".", ",")}/100`
-    : `R$ ${service.price.toFixed(2).replace(".", ",")}/mil`;
+  const price = `R$ ${service.price.toFixed(2).replace(".", ",")}/mil`;
 
   const rc = getServiceContent(params.slug);
   const metaDesc = rc?.description || getDescriptionFallback(params.slug, service.name) || service.description || `Compre ${service.name.toLowerCase()} para ${service.platform?.name || "redes sociais"}. Entrega rápida, pagamento via Pix. A partir de ${price}.`;
@@ -118,9 +116,7 @@ export default async function ServicePage({ params }: Props) {
                   <div className="glass-card p-4 text-center">
                     <p className="text-xs text-slate-500 mb-1">Preço</p>
                     <p className="text-lg font-bold text-emerald-400">
-                      {service.price < 1
-                        ? `R$ ${(service.price * 1000).toFixed(2).replace(".", ",")}`
-                        : `R$ ${service.price.toFixed(2).replace(".", ",")}`}
+                      R$ {service.price.toFixed(2).replace(".", ",")}
                       <span className="text-xs text-slate-500 font-normal">/mil</span>
                     </p>
                   </div>
@@ -189,9 +185,7 @@ export default async function ServicePage({ params }: Props) {
                 <div className="glass-card p-6 sticky top-24">
                   <p className="text-xs text-slate-500 mb-1">A partir de</p>
                   <p className="text-4xl font-bold text-white mb-1">
-                    {service.price < 1
-                      ? `R$ ${(service.price * 1000).toFixed(2).replace(".", ",")}`
-                      : `R$ ${service.price.toFixed(2).replace(".", ",")}`}
+                    R$ {service.price.toFixed(2).replace(".", ",")}
                     <span className="text-sm text-slate-500 font-normal">/mil</span>
                   </p>
                   <p className="text-xs text-slate-600 mb-6">{service.min_amount} - {service.max_amount} unidades • ⏱ {service.avg_time}</p>

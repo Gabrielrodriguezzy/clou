@@ -73,9 +73,7 @@ const badgeStyles: Record<string, string> = {
 };
 
 function formatPrice(price: number): string {
-  return price < 1
-    ? `R$ ${(price * 1000).toFixed(2).replace(".", ",")}`
-    : `R$ ${price.toFixed(2).replace(".", ",")}`;
+  return `R$ ${price.toFixed(2).replace(".", ",")}`;
 }
 
 export default async function InstagramPage() {

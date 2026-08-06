@@ -46,9 +46,7 @@ export default function BuyModal({ service, isOpen, onClose, token, onSuccess }:
   const rawTotal = (service.price * quantity) / 1000;
   const total = coupon ? coupon.final_amount : rawTotal;
   const effectiveDiscount = coupon ? (rawTotal * coupon.discount_percent / 100) : 0;
-  const displayPrice = service.price < 1
-    ? `R$ ${(service.price * 1000).toFixed(2).replace(".", ",")}`
-    : `R$ ${service.price.toFixed(2).replace(".", ",")}`;
+  const displayPrice = `R$ ${service.price.toFixed(2).replace(".", ",")}`;
 
   async function applyCoupon() {
     setCouponError(""); setCouponLoading(true);

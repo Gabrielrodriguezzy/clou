@@ -163,9 +163,7 @@ export default function DashboardHome() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.slice(0, 8).map((s) => {
-            const displayPrice = s.price < 1
-              ? `R$ ${(s.price * 1000).toFixed(2).replace(".", ",")}`
-              : `R$ ${s.price.toFixed(2).replace(".", ",")}`;
+            const displayPrice = `R$ ${s.price.toFixed(2).replace(".", ",")}`;
             return (
               <div key={s.id} className="glass-card-hover p-4">
                 <h3 className="text-sm font-medium text-white mb-1">{s.name}</h3>

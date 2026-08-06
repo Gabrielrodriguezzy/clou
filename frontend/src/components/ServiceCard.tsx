@@ -17,9 +17,7 @@ export default function ServiceCard({ service }: ServiceCardProps) {
   const isPopular = service.id % 3 === 0;
   const isBestValue = service.id % 5 === 0;
 
-  const displayPrice = service.price < 1
-    ? `R$ ${(service.price * 1000).toFixed(2).replace(".", ",")}`
-    : `R$ ${service.price.toFixed(2).replace(".", ",")}`;
+  const displayPrice = `R$ ${service.price.toFixed(2).replace(".", ",")}`;
 
   const serviceUrl = `/servico/${service.slug || service.id}`;
 
