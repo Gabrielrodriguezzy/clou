@@ -200,6 +200,55 @@ async def health_simple():
     return {"status": "ok"}
 
 
+@app.get("/api/debug/smm")
+async def debug_smm():
+    """Testa conexão com a SmmOficial e retorna diagnóstico."""
+    import httpx
+    from sqlalchemy import select
+    from app.core.database import async_session_factory
+    from app.models.provider import Provider
+    from app.core.security_ext import decrypt_secret
+    from app.core.config import settings
+
+    result = {"tests": []}
+
+    async with async_session_factory() as db:
+        providers = await db.execute(
+            select(Provider).where(Provider.is_active == True).order_by(Provider.priority)
+        )
+        providers = providers.scalars().all()
+
+        if not providers:
+            return {"error": "Nenhum provedor ativo no banco"}
+
+        for p in providers:
+            test = {"provider": p.name, "url": p.api_url, "active": p.is_active}
+            
+            # Test key decryption
+            try:
+                key = decrypt_secret(p.api_key, settings.SECRET_KEY)
+                test["key_length"] = len(key)
+                test["key_decrypt_ok"] = True
+            except Exception as e:
+                test["key_decrypt_ok"] = False
+                test["key_error"] = str(e)[:100]
+                result["tests"].append(test)
+                continue
+
+            # Test API connection
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(p.api_url, data={"key": key, "action": "balance"})
+                    test["api_status"] = resp.status_code
+                    test["api_response"] = resp.text[:200]
+            except Exception as e:
+                test["api_error"] = str(e)[:200]
+            
+            result["tests"].append(test)
+
+    return result
+
+
 @app.get("/")
 async def root():
     return {"message": "Clou API", "version": "0.1.0", "docs": "/docs"}
