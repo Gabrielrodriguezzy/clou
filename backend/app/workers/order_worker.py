@@ -59,6 +59,7 @@ class OrderWorker:
 
             for order in orders:
                 order_processed = False
+                last_error = ""
                 for provider in providers:
                     if order_processed:
                         break
@@ -101,14 +102,19 @@ class OrderWorker:
                             order_processed = True
 
                     except Exception as e:
+                        err_msg = str(e)[:200]
+                        last_error = err_msg
                         logger.warning(
-                            f"Erro ao processar pedido #{order.id} no provedor {provider.name}: {e}"
+                            f"Erro ao processar pedido #{order.id} no provedor {provider.name}: {err_msg}"
                         )
                         continue  # tenta próximo provedor
 
                 if not order_processed:
                     order.status = OrderStatus.ERROR
-                    order.notes = "Nenhum provedor conseguiu processar o pedido"
+                    if last_error:
+                        order.notes = f"Erro no provedor: {last_error}"
+                    else:
+                        order.notes = "Nenhum provedor conseguiu processar o pedido"
 
             await db.commit()
             return processed
