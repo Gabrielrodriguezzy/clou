@@ -166,9 +166,9 @@ class OrderWorker:
                     elif "processing" in new_status or "progress" in new_status:
                         order.status = OrderStatus.IN_PROGRESS
                         if "remains" in status_data:
-                            order.remains = status_data["remains"]
+                            order.remains = int(status_data["remains"])
                         if "start_count" in status_data:
-                            order.start_count = status_data["start_count"]
+                            order.start_count = int(status_data["start_count"])
                         updated += 1
                     elif "canceled" in new_status or "cancelled" in new_status:
                         order.status = OrderStatus.CANCELLED

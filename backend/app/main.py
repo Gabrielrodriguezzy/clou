@@ -195,6 +195,16 @@ async def health():
     return {"status": "ok", "app": settings.APP_NAME, "version": "0.1.0"}
 
 
+@app.get("/health")
+async def health_simple():
+    return {"status": "ok"}
+
+
+@app.get("/")
+async def root():
+    return {"message": "Clou API", "version": "0.1.0", "docs": "/docs"}
+
+
 @app.post("/api/worker/run")
 async def run_worker():
     """Endpoint para executar o worker manualmente ou via cron"""
