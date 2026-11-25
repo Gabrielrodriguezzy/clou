@@ -103,12 +103,13 @@ class MercadoPagoPixProvider:
         }
 
         body = {
-            "transaction_amount": amount,
-            "description": description[:255],
-            "payment_method_id": "pix",
-            "payer": {"email": payer_email or "cliente@clou.app"},
-            "external_reference": external_id,
-        }
+                    "transaction_amount": amount,
+                    "description": description[:255],
+                    "payment_method_id": "pix",
+                    "payer": {"email": payer_email or "cliente@clou.app"},
+                    "external_reference": external_id,
+                    "notification_url": "https://clou-backend.onrender.com/api/deposits/webhook/pix",
+                }
 
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
