@@ -70,8 +70,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning className={inter.variable}>
       <head>
-        <link rel="dns-prefetch" href="https://clou-production.up.railway.app" />
-        <link rel="preconnect" href="https://clou-production.up.railway.app" />
+        <link rel="dns-prefetch" href="https://clou-backend.onrender.com" />
+        <link rel="preconnect" href="https://clou-backend.onrender.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <meta name="google-site-verification" content="ErbeQPJdU6exlWUO5K-dj5htDYmt1wnxyxCUnkmOC8c" />

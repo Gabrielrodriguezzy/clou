@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function TermosPage() {
   return (
     <iframe
-      src="https://clou-production.up.railway.app/termos"
+      src="https://clou-backend.onrender.com/termos"
       className="w-full h-screen border-0"
       title="Termos de Uso"
     />

@@ -4,7 +4,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://clou-production.up.railway.app https://cloustore.online https://www.googletagmanager.com",
+  "connect-src 'self' https://clou-backend.onrender.com https://cloustore.online https://www.googletagmanager.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

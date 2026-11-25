@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function PrivacidadePage() {
   return (
     <iframe
-      src="https://clou-production.up.railway.app/privacidade"
+      src="https://clou-backend.onrender.com/privacidade"
       className="w-full h-screen border-0"
       title="Política de Privacidade"
     />
