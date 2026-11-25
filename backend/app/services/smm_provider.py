@@ -28,7 +28,7 @@ class SMMPanelClient:
         last_error = None
         for attempt in range(1, MAX_RETRIES + 2):  # 1 tentativa + retries
             try:
-                async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+                async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=False) as client:
                     resp = await client.post(self.api_url, data=params)
                     resp.raise_for_status()
                     return resp.json()
