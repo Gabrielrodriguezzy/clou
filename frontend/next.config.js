@@ -1,10 +1,10 @@
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://clou-backend.onrender.com https://cloustore.online https://www.googletagmanager.com",
+  "connect-src 'self' https://clou-backend.onrender.com https://cloustore.online https://www.googletagmanager.com https://www.google-analytics.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
