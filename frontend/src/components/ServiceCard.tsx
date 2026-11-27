@@ -69,17 +69,21 @@ export default function ServiceCard({ service }: ServiceCardProps) {
 
       {/* Price + CTA */}
       <div className="pt-3 border-t border-slate-800/50">
-        <div className="flex items-end justify-between">
-          <div>
-            <span className="text-[11px] text-slate-600 block">A partir de</span>
-            <span className="text-xl font-bold text-white tracking-tight">{displayPrice}</span>
-            <span className="text-xs text-slate-500 font-medium ml-0.5">/mil</span>
-          </div>
-          <a href={serviceUrl} className="btn-accent text-xs !py-1.5 !px-3">
-            Comprar
-          </a>
-        </div>
-      </div>
+              <div className="flex items-end justify-between">
+                <div>
+                  <span className="text-[11px] text-slate-600 block">A partir de</span>
+                  <span className="text-xl font-bold text-white tracking-tight">{displayPrice}</span>
+                  <span className="text-xs text-slate-500 font-medium ml-0.5">/mil</span>
+                </div>
+                <a href={serviceUrl} className="btn-accent text-xs !py-1.5 !px-3">
+                  Quero Esse
+                </a>
+              </div>
+              <div className="mt-2 flex items-center gap-1 justify-end">
+                <span className="text-[10px] text-emerald-500/60">🛡️</span>
+                <span className="text-[10px] text-emerald-500/40">Compra Segura</span>
+              </div>
+            </div>
     </div>
   );
 }

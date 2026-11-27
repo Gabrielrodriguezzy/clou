@@ -116,9 +116,10 @@ export default function Home() {
       {/* Hero */}
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center relative">
-          <div className="badge-indigo mb-6">
-            Pagamento via Pix · Entrega em até 24h
-          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+                      <span className="badge-indigo">Pagamento via Pix · Entrega em até 24h</span>
+                      <span className="badge-emerald text-xs flex items-center gap-1">🔒 Pagamento 100% Seguro</span>
+                    </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6 tracking-tight">
             <span className="text-[#f7f8f8]">
               Suas redes sociais
@@ -288,7 +289,7 @@ export default function Home() {
                     : "btn-secondary"
                 }`}
               >
-                {plan.highlighted ? "Escolher Plano" : plan.id === "business" ? "Quero Esse" : "Ver Detalhes"}
+                {plan.highlighted ? "Quero Esse Plano" : plan.id === "business" ? "Quero Esse" : "Ver Oferta"}
               </button>
             </div>
           ))}
@@ -341,7 +342,7 @@ export default function Home() {
             >
               Criar Conta Grátis
             </a>
-            <p className="text-xs text-[#62666d] mt-4">Sem cartão de crédito · Pagamento via Pix</p>
+            <p className="text-xs text-[#62666d] mt-4">🔒 Sem cartão de crédito · Pagamento 100% seguro via Pix</p>
           </div>
         </div>
       </section>

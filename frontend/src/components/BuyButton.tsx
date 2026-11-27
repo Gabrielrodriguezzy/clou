@@ -21,7 +21,7 @@ export default function BuyButton({ service, token }: { service: ServiceData; to
   return (
     <>
       <button onClick={() => setBuying(service)} className="btn-accent w-full !py-3 mb-3">
-        Comprar Agora
+        Comprar Agora →
       </button>
       <BuyModal
         service={buying}
