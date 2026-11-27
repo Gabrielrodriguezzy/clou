@@ -24,20 +24,22 @@ export default function ServiceCard({ service }: ServiceCardProps) {
   return (
     <div className="glass-card-hover p-5 flex flex-col h-full animate-fade-in-up relative group">
       {/* Badges */}
-      <div className="flex items-center gap-1.5 mb-3 min-h-[20px]">
-        {isPopular && (
-          <span className="badge-amber">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 glow-pulse-amber" />
-            Popular
-          </span>
-        )}
-        {isBestValue && (
-          <span className="badge-emerald">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 glow-pulse-emerald" />
-            Melhor Preço
-          </span>
-        )}
-      </div>
+            <div className="flex items-center gap-1.5 mb-3 min-h-[20px]">
+              <span className="text-[10px] text-emerald-500/60">🔄</span>
+              <span className="text-[10px] text-emerald-500/40">Garantia 30d</span>
+              {isPopular && (
+                <span className="badge-amber">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 glow-pulse-amber" />
+                  Popular
+                </span>
+              )}
+              {isBestValue && (
+                <span className="badge-emerald">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 glow-pulse-emerald" />
+                  Melhor Preço
+                </span>
+              )}
+            </div>
 
       {/* Header (link) */}
       <a href={serviceUrl} className="group/link">

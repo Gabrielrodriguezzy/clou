@@ -118,7 +118,8 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center relative">
           <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
                       <span className="badge-indigo">Pagamento via Pix · Entrega em até 24h</span>
-                      <span className="badge-emerald text-xs flex items-center gap-1">🔒 Pagamento 100% Seguro</span>
+                      <span className="badge-emerald text-xs flex items-center gap-1">✅ Pix Aprovado na Hora</span>
+                      <span className="badge-amber text-xs flex items-center gap-1">🔒 Compra Garantida</span>
                     </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6 tracking-tight">
             <span className="text-[#f7f8f8]">
@@ -289,7 +290,7 @@ export default function Home() {
                     : "btn-secondary"
                 }`}
               >
-                {plan.highlighted ? "Quero Esse Plano" : plan.id === "business" ? "Quero Esse" : "Ver Oferta"}
+                {plan.highlighted ? "Garantir Pacote" : plan.id === "business" ? "Quero Esse" : "Começar Agora"}
               </button>
             </div>
           ))}
@@ -334,15 +335,15 @@ export default function Home() {
               Bora fazer sua rede crescer?
             </h2>
             <p className="text-[#8a8f98] mb-8 max-w-lg mx-auto">
-              Crie sua conta e receba seguidores, curtidas e visualizações em minutos.
-            </p>
-            <a
-              href="/register"
-              className="btn-accent text-base !py-3 !px-10 inline-block"
-            >
-              Criar Conta Grátis
-            </a>
-            <p className="text-xs text-[#62666d] mt-4">🔒 Sem cartão de crédito · Pagamento 100% seguro via Pix</p>
+                          Crie sua conta e receba seguidores, curtidas e visualizações em minutos.
+                        </p>
+                        <a
+                          href="/register"
+                          className="btn-accent text-base !py-3 !px-10 inline-block"
+                        >
+                          Quero Começar Agora
+                        </a>
+                        <p className="text-xs text-[#62666d] mt-4">✅ Pix Aprovado na Hora · Sem cartão · Garantia 30 dias</p>
           </div>
         </div>
       </section>
